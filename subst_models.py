@@ -12,7 +12,7 @@ def fnF81(pi):
             else:
                 Q[i,j] = pi[states[j]]
     beta = 1/(1-np.dot(state_freqs, state_freqs))
-    Q = Q/beta
+    Q = Q*beta
     return Q, states
 
 def fnJC(n_states):
@@ -23,5 +23,12 @@ def fnJC(n_states):
     return Q*beta
 
 def fnGTR(er, pi):
-    pass
+    n_states = pi.shape[0]
+    Q, PI = np.zeros((n_states, n_states)), np.zeros((n_states, n_states))
+    R = np.triu(er,k=1)+np.tril(er,k=-1)
+    PI = np.diag(pi)
+    Q = np.dot(R,PI)
+    Q += np.diag(-np.sum(Q,axis=-1))
+    beta = -1.0/np.dot(pi,np.diag(Q))
+    return Q*beta
 
