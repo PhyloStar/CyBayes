@@ -31,7 +31,7 @@ def fnJC(n_states):
 def fnGTR(er, pi):
     n_states = pi.shape[0]
     n_rates = er.shape[0]
-    R, PI = np.zeros((n_states, n_states)), np.zeros((n_states, n_states))
+    R, Pi = np.zeros((n_states, n_states)), np.zeros((n_states, n_states))
     iu1 = np.triu_indices(n_states,1)
     #il1 = np.tril_indices(n_states,-1)
     R[iu1] = er
@@ -40,12 +40,12 @@ def fnGTR(er, pi):
 
     X = np.diag(-np.dot(pi,R)/pi)
     R = R + X
-    PI = np.diag(pi)
+    Pi = np.diag(pi)
     #print("pi ", pi)
     #print("er ", er)
     #print("R ", R)
 
-    Q = np.dot(R,PI)
+    Q = np.dot(R,Pi)
     Q += np.diag(-np.sum(Q,axis=-1))
     beta = -1.0/np.dot(pi,np.diag(Q))
     Q = Q*beta
