@@ -17,13 +17,20 @@ def mvDualSlider(pi):
     pi[i], pi[j] = x, y
     return pi
 
-def multiplier(x):
+def mvScaler(x):
     log_c = scaler_alpha*(np.random.uniform()-0.5)
     c = np.exp(log_c)
     x_new = x*c
     return x_new, log_c
 
-def slider(x, a, b):
+def mvVecScaler(X):
+    log_c = scaler_alpha*(np.random.uniform()-0.5)
+    c = np.exp(log_c)
+    X_new = X*c
+    return X_new, log_c
+
+
+def mvSlider(x, a, b):
     """ a and b are bounds
     """
     x_hat = np.random.uniform(x-0.5, x+0.5)
