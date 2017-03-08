@@ -33,7 +33,7 @@ def fnGTR(er, pi):
     n_rates = er.shape[0]
     R, PI = np.zeros((n_states, n_states)), np.zeros((n_states, n_states))
     iu1 = np.triu_indices(n_states,1)
-    il1 = np.tril_indices(n_states,-1)
+    #il1 = np.tril_indices(n_states,-1)
     R[iu1] = er
     R = R+R.T
     #R[il1] = er
@@ -41,15 +41,15 @@ def fnGTR(er, pi):
     X = np.diag(-np.dot(pi,R)/pi)
     R = R + X
     PI = np.diag(pi)
-    print("pi ", pi)
-    print("er ", er)
-    print("R ", R)
+    #print("pi ", pi)
+    #print("er ", er)
+    #print("R ", R)
 
     Q = np.dot(R,PI)
     Q += np.diag(-np.sum(Q,axis=-1))
     beta = -1.0/np.dot(pi,np.diag(Q))
     Q = Q*beta
-    print("\n")
-    print(np.dot(pi,Q))
+    #print("\n")
+    #print(np.dot(pi,Q))
     return Q
 
