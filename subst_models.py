@@ -7,9 +7,9 @@ def init_subst(n_states):
     return pi, er
 
 def fnF81(pi):
-    states = list(pi.keys())
-    n_states = len(states)
-    state_freqs = np.array([pi[s] for s in states])
+    """Vectorize the function"""
+    n_states = pi.shape[0]
+    #state_freqs = np.array([pi[s] for s in states])
     Q = np.zeros((n_states, n_states))
     for i in range(n_states):
         for j in range(n_states):
@@ -17,7 +17,7 @@ def fnF81(pi):
                 Q[i,j] = pi[states[j]]-1.0
             else:
                 Q[i,j] = pi[states[j]]
-    beta = 1/(1-np.dot(state_freqs, state_freqs))
+    beta = 1/(1-np.dot(pi, pi))
     Q = Q*beta
     return Q, states
 
