@@ -1,5 +1,11 @@
 import numpy as np
 
+
+def init_subst(n_states):
+    pi=np.random.dirichlet(np.repeat(1,n_states))
+    er=np.random.dirichlet(np.repeat(1,n_states*(n_states-1)/2))
+    return pi, er
+
 def fnF81(pi):
     states = list(pi.keys())
     n_states = len(states)
@@ -24,11 +30,26 @@ def fnJC(n_states):
 
 def fnGTR(er, pi):
     n_states = pi.shape[0]
-    Q, PI = np.zeros((n_states, n_states)), np.zeros((n_states, n_states))
-    R = np.triu(er,k=1)+np.tril(er,k=-1)
+    n_rates = er.shape[0]
+    R, PI = np.zeros((n_states, n_states)), np.zeros((n_states, n_states))
+    iu1 = np.triu_indices(n_states,1)
+    il1 = np.tril_indices(n_states,-1)
+    R[iu1] = er
+    R = R+R.T
+    #R[il1] = er
+
+    X = np.diag(-np.dot(pi,R)/pi)
+    R = R + X
     PI = np.diag(pi)
+    print("pi ", pi)
+    print("er ", er)
+    print("R ", R)
+
     Q = np.dot(R,PI)
     Q += np.diag(-np.sum(Q,axis=-1))
     beta = -1.0/np.dot(pi,np.diag(Q))
-    return Q*beta
+    Q = Q*beta
+    print("\n")
+    print(np.dot(pi,Q))
+    return Q
 
