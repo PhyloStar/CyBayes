@@ -10,16 +10,10 @@ def fnF81(pi):
     """Vectorize the function"""
     n_states = pi.shape[0]
     #state_freqs = np.array([pi[s] for s in states])
-    Q = np.zeros((n_states, n_states))
-    for i in range(n_states):
-        for j in range(n_states):
-            if i == j:
-                Q[i,j] = pi[states[j]]-1.0
-            else:
-                Q[i,j] = pi[states[j]]
+    Q = np.reshape(np.repeat(pi,n_states),(n_states,n_states)).T-np.diag(np.repeat(1,n_states))
     beta = 1/(1-np.dot(pi, pi))
     Q = Q*beta
-    return Q, states
+    return Q
 
 def fnJC(n_states):
     Q = np.ones((n_states, n_states))
