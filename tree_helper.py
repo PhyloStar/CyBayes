@@ -49,12 +49,13 @@ def newick2bl(t):
     """Implement a function that can read branch lengths from a newick tree
     """
     n_leaves = len(t.split(","))
+    n_internal_nodes = n_leaves+t.count("(")
     edges_dict = defaultdict()
     t = t.replace(";","")
     t = t.replace(" ","")
     t = t.replace(")",",)")
     t = t.replace("(","(,")
-    n_internal_nodes = 2*n_leaves-1
+
     nodes_stack = []
     
     arr = t.split(",")
@@ -67,10 +68,16 @@ def newick2bl(t):
             n_internal_nodes -= 1
             #edges_dict[nodes_stack[-1], k] = float(v)
         elif "(" not in elem and ")" not in elem:
-            k, v = elem.split(":")
+            if ":" not in elem:
+                k, v =elem, 1
+            else:
+                k, v = elem.split(":")
             edges_dict[nodes_stack[-1], k] = float(v)
         elif ")" in elem:
-            k, v = elem.split(":")
+            if ":" not in elem:
+                v = 1
+            else:
+                k, v = elem.split(":")
             k = nodes_stack.pop()
             edges_dict[nodes_stack[-1], k] = float(v)
         #print("After ",nodes_stack)
