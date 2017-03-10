@@ -45,9 +45,38 @@ def init_tree(taxa):
     
     return edge_dict
 
-def newick2adjlist(t):
+def newick2bl(t):
     """Implement a function that can read branch lengths from a newick tree
     """
+    n_leaves = len(t.split(","))
+    edges_dict = defaultdict()
+    t = t.replace(";","")
+    t = t.replace(" ","")
+    t = t.replace(")",",)")
+    t = t.replace("(","(,")
+    n_internal_nodes = 2*n_leaves-1
+    nodes_stack = []
+    
+    arr = t.split(",")
+    #print(arr)
+    for i, elem in enumerate(arr[:-1]):
+        #print("Before ",nodes_stack)
+        if "(" in elem:
+            #k, v = elem.replace("(","").split(":")
+            nodes_stack.append(n_internal_nodes)
+            n_internal_nodes -= 1
+            #edges_dict[nodes_stack[-1], k] = float(v)
+        elif "(" not in elem and ")" not in elem:
+            k, v = elem.split(":")
+            edges_dict[nodes_stack[-1], k] = float(v)
+        elif ")" in elem:
+            k, v = elem.split(":")
+            k = nodes_stack.pop()
+            edges_dict[nodes_stack[-1], k] = float(v)
+        #print("After ",nodes_stack)
+        #print("EDGES ",edges_dict)
+    
+    return edges_dict
 
 def newick2adjlist(t):
     """Converts from a NEWICK format to a adjacency list format.
