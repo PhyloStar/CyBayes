@@ -38,18 +38,20 @@ bl_exp_scale = 0.1
 
 def init_tree(taxa):
     t = rtree(taxa)
-    edge_dict, leaves = newick2adjlist(t)
+    edge_dict, n_nodes = newick2bl(t, len(taxa))
     
     for k, v in edge_dict.items():
         edge_dict[k] = np.random.exponential(bl_exp_scale)
     
-    return edge_dict
+    return edge_dict, n_nodes
 
-def newick2bl(t):
+def newick2bl(t, n_taxa):
     """Implement a function that can read branch lengths from a newick tree
     """
     n_leaves = len(t.split(","))
+    assert n_taxa == n_leaves
     n_internal_nodes = n_leaves+t.count("(")
+    n_nodes = n_leaves+t.count("(")
     edges_dict = defaultdict()
     t = t.replace(";","")
     t = t.replace(" ","")
@@ -82,14 +84,16 @@ def newick2bl(t):
             edges_dict[nodes_stack[-1], k] = float(v)
         #print("After ",nodes_stack)
         #print("EDGES ",edges_dict)
+    #print("EDGES ",edges_dict, "\n")
     
-    return edges_dict
+    return edges_dict, n_nodes
 
-def newick2adjlist(t):
+def newick2adjlist(t, n_taxa):
     """Converts from a NEWICK format to a adjacency list format.
     Allows fast computation for Parsimony.
     """
     n_leaves = len(t.split(","))
+    assert n_taxa == n_leaves
     leaves = []
     nodes_stack = []
     leaf = ""
@@ -149,29 +153,13 @@ def rtree(taxa):
     taxa_list.append(";")
     return "".join(taxa_list)
 
-#def edges_order(nodes_dict, node, leaves):
-#    """Return the post-order of edges to be processed.
-#    """
-#    edges_ordered_list = []
-#    
-#    for x in nodes_dict[node]:
-#        if x not in leaves:
-#            y = edges_order(nodes_dict, x, leaves)
-#            print("No leaf ",x, y)
-#            edges_ordered_list += y
-
-#            edges_ordered_list.append((node, x))
-#        else:
-#            print("Leaf ",node, x)
-#            edges_ordered_list.append((node, x))
-#    return edges_ordered_list
-
 def postorder(nodes_dict, node, leaves):
     """Return the post-order of edges to be processed.
     """
     edges_ordered_list = []
     #print(node, nodes_dict[node])
     x, y = nodes_dict[node]
+    #print(node, x, y)
     edges_ordered_list += [(node,x)]
     edges_ordered_list += [(node,y)]
     
