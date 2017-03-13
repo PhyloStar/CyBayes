@@ -6,6 +6,27 @@ def init_subst(n_states):
     er=np.random.dirichlet(np.repeat(1,n_states*(n_states-1)/2))
     return pi, er
 
+def ptF81(pi,d):
+    """Compute the Probability matrix under a F81 model
+    """
+    n_states = pi.shape[0]
+    beta = 1/(1-np.dot(pi, pi))
+    x = np.exp(-beta*d)
+    y = 1.0-x
+    p_t = np.reshape(np.repeat(pi*y,n_states),(n_states,n_states)).T+np.diag(np.repeat(x, n_states))
+    return p_t
+
+def ptJC(n_states, d):
+    """Compute the Probability matrix under a F81 model
+    """
+    pi = np.repeat(1.0/n_states, n_states)
+    beta = 1/(1-np.dot(pi, pi))
+    x = np.exp(-beta*d)
+    y = 1.0-x
+    p_t = np.reshape(np.repeat(pi*y,n_states),(n_states,n_states)).T+np.diag(np.repeat(x, n_states))
+    return p_t
+
+
 def fnF81(pi):
     """Vectorize the function"""
     n_states = pi.shape[0]
