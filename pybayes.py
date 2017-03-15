@@ -5,6 +5,7 @@ import numpy as np
 from scipy import linalg
 import multiprocessing as mp
 np.random.seed(1234)
+from scipy.stats import dirichlet, expon
 
 n_chars, n_taxa, alphabet, taxa, n_sites = None, None, None, None, None
 
@@ -50,7 +51,7 @@ def get_prob_t(mcmc_state):
         if model == "F81":
             p_t[parent,child] = subst_models.ptF81(mcmc_state["pi"], edges_dict[parent,child])
         elif model == "JC":
-            p_t[parent,child] =  subst_models.ptJC(mcmc_state["pi"], edges_dict[parent,child])
+            p_t[parent,child] =  subst_models.ptJC(n_chars, edges_dict[parent,child])
         elif model == "GTR":
             Q = subst_models.fnGTR(mcmc_state["rates"], mcmc_state["pi"])
             p_t[parent,child] = linalg.expm(Q*edges_dict[parent,child])
@@ -73,20 +74,28 @@ input_file = sys.argv[1]
 model = sys.argv[2]
 n_generations = sys.argv[3]
 
+####Initializing. Should move these into a function####
 n_taxa, n_chars, alphabet, site_dict, taxa, n_sites = utils.readPhy(input_file)
-#print("ALPHABET ", n_chars)
+n_rates = n_states*(n_states-1)/2
+prior_pi = np.array([1]*n_chars)
+prior_er = np.array([1]*n_rates)
+bl_exp_scale = 0.1
+
+pi_prior_prob = lambda pi, prior_pi: dirichlet.logpdf(pi, prior_pi)
+er_prior_prob = lambda er, prior_er: dirichlet.logpdf(er, prior_er)
+bl_exp_prior_prob = lambda x, exp_scale: expon.logpdf(x, scale=bl_exp_scale)
+
 sites = utils.transform(site_dict)
 
 mcmc_state = initialize()
-#mcmc_states = [ for idx in range(n_sites)]
 
-utils.print_mcmcstate(mcmc_state)
-print("\n")
-
-#pool = mp.Pool(2)
-#tree_ll = sum(pool.map())
+#utils.print_mcmcstate(mcmc_state)
+#print("\n")
 
 ll_mats = [site2mat(sites[idx]) for idx in range(n_sites)]
+
+procs = []
+tree_ll = 0.0
 
 for n_iter in range(10000):
     tree_ll = 0.0
@@ -94,7 +103,6 @@ for n_iter in range(10000):
     for idx in range(n_sites):
         tree_ll += ML(mcmc_state, ll_mats[idx])
 
-    print("Total likelihood ", n_iter, tree_ll)
 
 
 

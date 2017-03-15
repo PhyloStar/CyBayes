@@ -33,6 +33,7 @@ from operator import itemgetter
 import numpy as np
 random.seed(12345)
 import itertools as it
+np.random.seed(1234)
 
 bl_exp_scale = 0.1
 
@@ -340,13 +341,14 @@ def rooted_NNI(edges_list, leaves):
     #print("Target ",tgt)
     random.shuffle(y)
     
+    src_bl, tgt_bl = edges_list[a,tgt], edges_list[b,y[0]]
     del edges_list[a,tgt], edges_list[b,y[0]]
-    edges_list[a,y[0]] = 1
-    edges_list[b,tgt] = 1
+    edges_list[a,y[0]] = tgt_bl
+    edges_list[b,tgt] = src_bl
     
     #print("Edges List\n",edges_list)
     
-    nodes_dict = adjlist2nodes_dict(edges_list)
+    #nodes_dict = adjlist2nodes_dict(edges_list)
     
     return edges_list, nodes_dict, hastings_ratio
 

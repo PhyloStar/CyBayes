@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.stats import dirichlet
+import random
 
 dir_alpha = 100.0
 scaler_alpha = 1.25
@@ -10,7 +11,7 @@ def mvDirichlet(pi):
     return pi_new, hastings_ratio
 
 def mvDualSlider(pi):
-    i,j = np.sample(len(range(len(pi))),2)
+    i, j = random.sample(range(pi.shape[0]),2 )
     sum_ij = pi[i]+pi[j]
     x = np.random.uniform(sum_ij)
     y = sum_ij -x
