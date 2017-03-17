@@ -40,7 +40,6 @@ def ML(pi, p_t, edges, root, ll_mat):
 
 def get_prob_t(pi, rates, edges_dict, edges):
     p_t = defaultdict()
-
     for parent, child in edges[::-1]:
         if args.model == "F81":
             p_t[parent,child] = subst_models.ptF81(pi, edges_dict[parent,child])
@@ -62,7 +61,6 @@ def initialize():
     edges_ordered_list = tree_helper.postorder(nodes_dict, state["root"], taxa)
     state["postorder"] = edges_ordered_list
     state["transitionMat"] = get_prob_t(state["pi"], state["rates"], state["tree"], state["postorder"])
-    
     return state
 
 def update_LL(state):
@@ -70,7 +68,6 @@ def update_LL(state):
     for idx in range(n_sites):
         logLikehood += ML(state["pi"], state["transitionMat"], state["postorder"], state["root"], ll_mats[idx])
     return logLikehood
-
 
 def prior_probs(param, val):
     if param == "pi":
@@ -80,10 +77,12 @@ def prior_probs(param, val):
     elif param == "bl":
         return expon.logpdf(x, scale=bl_exp_scale)
 
+
 parser = argparse.ArgumentParser()
 parser.add_argument("-i", "--input_file", help="display a square of a given number",  type=str)
 parser.add_argument("-m", "--model", help="JC/F81/GTR",  type=str)
 parser.add_argument("-n","--n_gen", help="Number of generations",  type=int)
+parser.add_argument("-t","--thin", help="Number of generations",  type=int)
 args = parser.parse_args()
 
 n_taxa, n_chars, alphabet, site_dict, taxa, n_sites = utils.readPhy(args.input_file)
@@ -100,45 +99,68 @@ state = init_state.copy()
 
 
 if args.model == "F81":
-    params_list = ["pi"]
-    weights = [1.0]
+    params_list = ["pi", "bl", "tree"]
+    weights = [0.2, 0.4, 0.4]
 elif args.model == "GTR":
-    params_list = ["pi", "rates"]
-    weights = [0.5, 0.5]
+    params_list = ["pi", "rates", "bl", "tree"]#tree", "bl"]
+    weights = [0.2, 0.2, 0.3, 0.3]#, 0.6]#, 0.4]
 elif args.model == "JC":
-    params_list = ["bl"]
-    weights = [1.0]
+    params_list = ["bl", "tree"]
+    weights = [0.5, 0.5]
 
 
-moves_dict = {"pi": [params_moves.mvDirichlet], "rates": [params_moves.mvDirichlet], "bl":[params_moves.mvScaler]}
+moves_dict = {"pi": [params_moves.mvDirichlet], "rates": [params_moves.mvDirichlet], "tree":[tree_helper.rooted_NNI, tree_helper.swap_top_children], "bl":[tree_helper.scale_edge]}
 n_accepts = 0.0
 samples = []
 
-for n_iter in range(args.n_gen):
+tree_file = open(args.input_file.split("/")[1],"w")
+
+for n_iter in range(1, args.n_gen+1):
     propose_state = state.copy()
-    current_ll, proposed_ll, ll_ratio = 0.0, 0.0, 0.0
+    current_ll, proposed_ll, ll_ratio, hr = 0.0, 0.0, 0.0, 0.0
     
     param_select = np.random.choice(params_list, p=weights)
-    new_param, hr = random.choice(moves_dict[param_select])(state[param_select])
+    move = random.choice(moves_dict[param_select])
+    #print("Selected move ", param_select, move.__name__)
     
-    propose_state[param_select] = new_param
+    if param_select in ["pi", "rates"]:
+        new_param, hr = move(propose_state[param_select])
+        propose_state[param_select] = new_param
+        current_prior = prior_probs(param_select, state[param_select])
+        prop_prior = prior_probs(param_select, propose_state[param_select])
+        hr += prop_prior-current_prior
+        
+    elif param_select == "bl":
+        temp_edges_dict, hr = move(propose_state["tree"].copy())
+        propose_state["tree"] = temp_edges_dict
+        
+    elif param_select == "tree":
+        temp_edges_dict, prop_post_order = move(propose_state[param_select].copy(), propose_state["root"], taxa)
+        propose_state["tree"] = temp_edges_dict
+        propose_state["postorder"] = prop_post_order
+    
     propose_state["transitionMat"] = get_prob_t(propose_state["pi"], propose_state["rates"], propose_state["tree"], propose_state["postorder"])
-    
-    current_prior = prior_probs(param_select, state[param_select])
-    prop_prior = prior_probs(param_select, propose_state[param_select])
     
     current_ll = state["logLikehood"]
     proposed_ll = update_LL(propose_state)
 
-    ll_ratio = proposed_ll - current_ll + prop_prior - current_prior + hr
+    ll_ratio = proposed_ll - current_ll + hr
 
     if np.log(random.random()) < ll_ratio:
         n_accepts += 1
-        state[param_select] = propose_state[param_select]
-        state["transitionMat"] = propose_state["transitionMat"]
+        if param_select == "bl":
+            state["tree"] = propose_state["tree"]
+        elif param_select == "tree":
+            state[param_select] = propose_state[param_select]
+            state["postorder"] = propose_state["postorder"]
+        else:
+            state[param_select] = propose_state[param_select]
+        state["transitionMat"] = propose_state["transitionMat"].copy()
         state["logLikehood"] = proposed_ll
-        #print(n_accepts, n_iter, state[param_select], current_ll, proposed_ll)
-    samples.append((state[param_select], proposed_ll))
+        if n_iter % args.thin == 0:
+            print(n_accepts, n_iter, current_ll, proposed_ll)
+            print(state["tree"])
 
+tree_file.close()
 
 
