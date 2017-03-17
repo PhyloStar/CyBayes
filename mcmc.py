@@ -109,7 +109,7 @@ elif args.model == "JC":
     weights = [0.5, 0.5]
 
 
-moves_dict = {"pi": [params_moves.mvDirichlet], "rates": [params_moves.mvDirichlet], "tree":[tree_helper.rooted_NNI, tree_helper.swap_top_children], "bl":[tree_helper.scale_edge]}
+moves_dict = {"pi": [params_moves.mvDirichlet], "rates": [params_moves.mvDirichlet], "tree":[tree_helper.rooted_NNI], "bl":[tree_helper.scale_edge]}
 n_accepts = 0.0
 samples = []
 
@@ -157,9 +157,9 @@ for n_iter in range(1, args.n_gen+1):
             state[param_select] = propose_state[param_select]
         state["transitionMat"] = propose_state["transitionMat"].copy()
         state["logLikehood"] = proposed_ll
-        if n_iter % args.thin == 0:
-            print(n_accepts, n_iter, current_ll, proposed_ll)
-            print(state["tree"])
+        #if n_iter % args.thin == 0:
+    print(n_accepts, n_iter, state["logLikehood"])
+        #   print(state["tree"])
 
 tree_file.close()
 
