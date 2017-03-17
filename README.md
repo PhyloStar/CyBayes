@@ -5,6 +5,7 @@
 - Only requires Python3 and Numpy and Scipy.
 - Can handle Jukes-Cantor, F81, and GTR models.
 - Handles only Rooted trees.
+- Handles trees like Phylo class in ape package of R.
 
 # Usage
 ```
