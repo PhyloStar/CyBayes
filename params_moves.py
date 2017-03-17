@@ -13,10 +13,10 @@ def mvDirichlet(pi):
 def mvDualSlider(pi):
     i, j = random.sample(range(pi.shape[0]),2 )
     sum_ij = pi[i]+pi[j]
-    x = np.random.uniform(sum_ij)
+    x = np.random.uniform(0, sum_ij)
     y = sum_ij -x
     pi[i], pi[j] = x, y
-    return pi
+    return pi, 0.0
 
 def mvScaler(x):
     log_c = scaler_alpha*(np.random.uniform()-0.5)

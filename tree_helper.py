@@ -39,18 +39,18 @@ bl_exp_scale = 0.1
 
 def init_tree(taxa):
     t = rtree(taxa)
-    edge_dict, n_nodes = newick2bl(t, len(taxa))
+    edge_dict, n_nodes = newick2bl(t)
     
     for k, v in edge_dict.items():
         edge_dict[k] = np.random.exponential(bl_exp_scale)
     
     return edge_dict, n_nodes
 
-def newick2bl(t, n_taxa):
+def newick2bl(t):
     """Implement a function that can read branch lengths from a newick tree
     """
     n_leaves = len(t.split(","))
-    assert n_taxa == n_leaves
+    #assert n_taxa == n_leaves
     n_internal_nodes = n_leaves+t.count("(")
     n_nodes = n_leaves+t.count("(")
     edges_dict = defaultdict()
