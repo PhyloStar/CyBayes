@@ -4,26 +4,9 @@ Refer: Valiente, Gabriel. Algorithms on trees and graphs. Springer Science & Bus
 further algorithms.
 The tree datastructure also looks like "phylo" class in ape package of R.
 
-The program implements NNI, Fitch Parsimony on multiple states, post-order tree traversal on unrooted trees.
-
 author: Taraka Rama
 email: taraka@fripost.org
 
-Use with PyPy to get faster results.
-
-As of now, the sites are randomly generated but, it is possible to use real data.
-
-The program takes
-3 secs to compute Fitch parsimony 100 NNI rearrangements on a 500 site data using PyPy on a Ubuntu laptop.
-65 secs to compute Fitch parsimony on 10000 NNI rearrangements on a 100 site data
-650 secs to compute Fitch parsimony on 100000 NNI rearrangements on a 100 site data
-
-TODO: 
-1) SPR, guided NNI, lazy SPR, guided SPR, disk Covering methods, Ratchet
-2) Branch lengths
-3) Sankoff parsimony
-4) Random sequence addition
-5) 
 """
 
 from collections import defaultdict, deque
@@ -391,6 +374,7 @@ def swap_top_children(edges_list, root_node, leaves):
 
 def scale_edge(temp_edges_dict):
     rand_edge = random.choice(list(temp_edges_dict))
+    #rand_edge = next(iter(temp_edges_dict))
     rand_bl = temp_edges_dict[rand_edge]
 
     log_c = scaler_alpha*(np.random.uniform(0,1)-0.5)
@@ -398,7 +382,8 @@ def scale_edge(temp_edges_dict):
     rand_bl_new = rand_bl*c
     temp_edges_dict[rand_edge] = rand_bl_new
 
-    prior_ratio = expon.logpdf(rand_bl_new, scale=bl_exp_scale) - expon.logpdf(rand_bl, scale=bl_exp_scale)
+    #prior_ratio = expon.logpdf(rand_bl_new, scale=bl_exp_scale) - expon.logpdf(rand_bl, scale=bl_exp_scale)
+    prior_ratio = bl_exp_scale*(rand_bl-rand_bl_new)
     
     return temp_edges_dict, log_c+prior_ratio
 
@@ -410,16 +395,17 @@ def rooted_NNI(temp_edges_list, root_node, leaves):
     #temp_edges_list = edges_list.copy()
     nodes_dict = adjlist2nodes_dict(temp_edges_list)
 
-    list_edges = list(temp_edges_list.keys())
+    #list_edges = list(temp_edges_list.keys())
 
-    random.shuffle(list_edges)
+    #random.shuffle(list_edges)
     rand_edge = None
     
-    for x in list_edges:
+    for x in temp_edges_list.keys():
         if x[0] not in leaves and x[1] not in leaves and x[0] != root_node:
             rand_edge = x
+            break
     
-    a, b = rand_edge[0], rand_edge[1]
+    a, b = rand_edge
 
     x, y = nodes_dict[a], nodes_dict[b]
     
@@ -430,7 +416,7 @@ def rooted_NNI(temp_edges_list, root_node, leaves):
     else: tgt = x[0]
 
     #print("Target ",tgt)
-    random.shuffle(y)
+    #random.shuffle(y)
     
     src_bl, tgt_bl = temp_edges_list[a,tgt], temp_edges_list[b,y[0]]
     del temp_edges_list[a,tgt], temp_edges_list[b,y[0]]

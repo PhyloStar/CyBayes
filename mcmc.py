@@ -165,7 +165,7 @@ for n_iter in range(1, args.n_gen+1):
 
         if n_iter % args.thin == 0:
             print(n_accepts, n_iter, current_ll, proposed_ll)
-            print(state["tree"])
+            #print(state["tree"])
 
 tree_file.close()
 
