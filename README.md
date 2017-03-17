@@ -4,6 +4,7 @@
 - Can handle multistate characters.
 - Only requires Python3 and Numpy and Scipy.
 - Can handle Jukes-Cantor, F81, and GTR models.
+- Handles only Rooted trees.
 
 # Usage
 ```
@@ -22,6 +23,6 @@ optional arguments:
   -t THIN, --thin THIN  Number of generations
   
   ```
-  # Requirements
-  -Python3, Scipy, and Numpy
+# Requirements
+- Python3, Scipy, and Numpy
  
