@@ -34,8 +34,9 @@ import numpy as np
 random.seed(12345)
 import itertools as it
 np.random.seed(1234)
-
+from scipy.stats import expon
 bl_exp_scale = 0.1
+scaler_alpha = 1.25
 
 def init_tree(taxa):
     t = rtree(taxa)
@@ -307,50 +308,6 @@ def shared_distance(edges_list, leaves):
     return pairwise
 
 
-def rooted_NNI(edges_list, leaves):
-    """Performs Nearest Neighbor Interchange on a edges list.
-    """
-    #print("Selected NNI")
-    hastings_ratio = 0.0
-    root_node = 2*len(leaves)-1
-    
-    nodes_dict = adjlist2nodes_dict(edges_list)
-
-    list_edges = list(edges_list.keys())
-
-    random.shuffle(list_edges)
-    rand_edge = None
-    
-    for x in list_edges:
-        if x[0] not in leaves and x[1] not in leaves and x[0] != root_node:
-            rand_edge = x
-    
-    #print("Random edge ", rand_edge,"\n")
-    
-    a, b = rand_edge[0], rand_edge[1]
-
-    x, y = nodes_dict[a], nodes_dict[b]
-    
-    #print(a,b,"\n")
-    
-    #print(x,y,"\n")
-    
-    if x[0] == b: tgt = x[1]
-    else: tgt = x[0]
-
-    #print("Target ",tgt)
-    random.shuffle(y)
-    
-    src_bl, tgt_bl = edges_list[a,tgt], edges_list[b,y[0]]
-    del edges_list[a,tgt], edges_list[b,y[0]]
-    edges_list[a,y[0]] = tgt_bl
-    edges_list[b,tgt] = src_bl
-    
-    #print("Edges List\n",edges_list)
-    
-    #nodes_dict = adjlist2nodes_dict(edges_list)
-    
-    return edges_list, nodes_dict, hastings_ratio
 
 def swap_leaves(edges_list, leaves):
     """Swap two leaves randomly"""
@@ -374,12 +331,12 @@ def swap_leaves(edges_list, leaves):
     nodes_dict = adjlist2nodes_dict(edges_list)
     return edges_list, nodes_dict, hastings_ratio
 
-def externalSPR(edges_list, leaves):
+def externalSPR(edges_list, root_node, leaves):
     """Performs Subtree-Pruning and Regrafting
     Have to implement.
     """
     hastings_ratio = 0.0
-    root_node = 2*len(leaves)-1
+    
     rev_nodes_dict = adjlist2reverse_nodes_dict(edges_list)
     nodes_dict = adjlist2nodes_dict(edges_list)
     
@@ -414,11 +371,9 @@ def externalSPR(edges_list, leaves):
     #print(nodes_dict,"\n")
     return edges_list, nodes_dict, hastings_ratio
 
-def swap_top_children(edges_list, leaves):
-    """Performs Nearest Neighbor Interchange on a edges list. Does not work well.
+def swap_top_children(edges_list, root_node, leaves):
+    """Swaps two leaves within a subtree
     """
-    root_node = 2*len(leaves)-1
-    
     nodes_dict = adjlist2nodes_dict(edges_list)
     left, right = nodes_dict[root_node]
     left_children = nodes_dict[left]
@@ -429,7 +384,61 @@ def swap_top_children(edges_list, leaves):
     edges_list[right,left_children[0]]=1
 
     nodes_dict = adjlist2nodes_dict(edges_list)
+    temp_nodes_dict = adjlist2nodes_dict(edges_list)
+    new_postorder = postorder(temp_nodes_dict, root_node, leaves)
+    
+    return edges_list, new_postorder
 
-    return edges_list, nodes_dict
+def scale_edge(temp_edges_dict):
+    rand_edge = random.choice(list(temp_edges_dict))
+    rand_bl = temp_edges_dict[rand_edge]
 
+    log_c = scaler_alpha*(np.random.uniform(0,1)-0.5)
+    c = np.exp(log_c)
+    rand_bl_new = rand_bl*c
+    temp_edges_dict[rand_edge] = rand_bl_new
+
+    prior_ratio = expon.logpdf(rand_bl_new, scale=bl_exp_scale) - expon.logpdf(rand_bl, scale=bl_exp_scale)
+    
+    return temp_edges_dict, log_c+prior_ratio
+
+def rooted_NNI(temp_edges_list, root_node, leaves):
+    """Performs Nearest Neighbor Interchange on a edges list.
+    """
+    #print("Selected NNI")
+    hastings_ratio = 0.0
+    #temp_edges_list = edges_list.copy()
+    nodes_dict = adjlist2nodes_dict(temp_edges_list)
+
+    list_edges = list(temp_edges_list.keys())
+
+    random.shuffle(list_edges)
+    rand_edge = None
+    
+    for x in list_edges:
+        if x[0] not in leaves and x[1] not in leaves and x[0] != root_node:
+            rand_edge = x
+    
+    a, b = rand_edge[0], rand_edge[1]
+
+    x, y = nodes_dict[a], nodes_dict[b]
+    
+    #print(a,b,"\n")
+    #print(x,y,"\n")
+    
+    if x[0] == b: tgt = x[1]
+    else: tgt = x[0]
+
+    #print("Target ",tgt)
+    random.shuffle(y)
+    
+    src_bl, tgt_bl = temp_edges_list[a,tgt], temp_edges_list[b,y[0]]
+    del temp_edges_list[a,tgt], temp_edges_list[b,y[0]]
+    temp_edges_list[a,y[0]] = tgt_bl
+    temp_edges_list[b,tgt] = src_bl
+    
+    temp_nodes_dict = adjlist2nodes_dict(temp_edges_list)
+    new_postorder = postorder(temp_nodes_dict, root_node, leaves)
+    
+    return temp_edges_list, new_postorder
 
