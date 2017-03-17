@@ -79,7 +79,7 @@ def prior_probs(param, val):
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-i", "--input_file", help="display a square of a given number",  type=str)
+parser.add_argument("-i", "--input_file", help="Input a file in Phylip format with taxa and characters separated by a TAB character",  type=str)
 parser.add_argument("-m", "--model", help="JC/F81/GTR",  type=str)
 parser.add_argument("-n","--n_gen", help="Number of generations",  type=int)
 parser.add_argument("-t","--thin", help="Number of generations",  type=int)
@@ -160,7 +160,7 @@ for n_iter in range(1, args.n_gen+1):
         state["transitionMat"] = propose_state["transitionMat"].copy()
         state["logLikehood"] = proposed_ll
         #if n_iter % args.thin == 0:
-    print(n_accepts, n_iter, state["logLikehood"])
+        #print(n_accepts, n_iter, state["logLikehood"])
         #   print(state["tree"])
 
         if n_iter % args.thin == 0:
