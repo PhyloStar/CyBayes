@@ -102,8 +102,8 @@ if args.model == "F81":
     params_list = ["pi", "bl", "tree"]
     weights = [0.2, 0.4, 0.4]
 elif args.model == "GTR":
-    params_list = ["pi", "rates", "tree"]#, "tree"]#tree", "bl"]
-    weights = [0.3, 0.3, 0.4]#, 0.6]#, 0.4]
+    params_list = ["pi", "rates", "tree", "bl"]#, "tree"]#tree", "bl"]
+    weights = [0.2, 0.2, 0.3, 0.3]#, 0.4]
 elif args.model == "JC":
     params_list = ["bl", "tree"]
     weights = [0.5, 0.5]
