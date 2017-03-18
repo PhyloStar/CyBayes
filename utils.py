@@ -1,7 +1,5 @@
 from collections import defaultdict
 
-
-
 def readPhy(fname):
     site_dict = defaultdict()
     alphabet, taxa_list = [], []
