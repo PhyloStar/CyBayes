@@ -47,7 +47,7 @@ def get_prob_t(pi, rates, edges_dict, edges):
             p_t[parent,child] =  subst_models.ptJC(n_chars, edges_dict[parent,child])
         elif args.model == "GTR":
             Q = subst_models.fnGTR(rates, pi)
-            p_t[parent,child] = linalg.expm(Q*edges_dict[parent,child])
+            p_t[parent,child] = linalg.expm2(Q*edges_dict[parent,child])
     return p_t
     
 
@@ -102,8 +102,8 @@ if args.model == "F81":
     params_list = ["pi", "bl", "tree"]
     weights = [0.2, 0.4, 0.4]
 elif args.model == "GTR":
-    params_list = ["pi", "tree", "bl"]#, "tree"]#tree", "bl"]
-    weights = [0.2, 0.4, 0.4]#, 0.4]
+    params_list = ["pi","rates", "tree", "bl"]#, "tree"]#tree", "bl"]
+    weights = [0.2, 0.2, 0.3, 0.3]#0.4, 0.4, ]#, 0.4]
 elif args.model == "JC":
     params_list = ["bl", "tree"]
     weights = [0.5, 0.5]

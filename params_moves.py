@@ -7,6 +7,7 @@ scaler_alpha = 1.25
 
 def mvDirichlet(pi):
     pi_new = np.random.dirichlet(dir_alpha*pi)
+    #print(pi, pi_new)
     hastings_ratio = dirichlet.logpdf(pi, pi_new) - dirichlet.logpdf(pi_new, pi)
     return pi_new, hastings_ratio
 
