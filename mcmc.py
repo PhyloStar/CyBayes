@@ -31,9 +31,9 @@ def ML(pi, p_t, edges, root, ll_mat):
     
     for parent, child in edges[::-1]:
         if child in taxa:
-            LL_mat[parent] = LL_mat[parent]*np.dot(p_t[parent,child],ll_mat[child])
+            LL_mat[parent] *= np.dot(p_t[parent,child],ll_mat[child])
         else:
-            LL_mat[parent] = LL_mat[parent]*np.dot(p_t[parent,child],LL_mat[child])
+            LL_mat[parent] *= np.dot(p_t[parent,child],LL_mat[child])
     
     return np.log(np.dot(LL_mat[root], pi))
 
@@ -102,8 +102,8 @@ if args.model == "F81":
     params_list = ["pi", "bl", "tree"]
     weights = [0.2, 0.4, 0.4]
 elif args.model == "GTR":
-    params_list = ["pi", "rates", "bl", "tree"]#tree", "bl"]
-    weights = [0.2, 0.2, 0.3, 0.3]#, 0.6]#, 0.4]
+    params_list = ["pi", "rates", "tree"]#, "tree"]#tree", "bl"]
+    weights = [0.3, 0.3, 0.4]#, 0.6]#, 0.4]
 elif args.model == "JC":
     params_list = ["bl", "tree"]
     weights = [0.5, 0.5]
@@ -163,8 +163,8 @@ for n_iter in range(1, args.n_gen+1):
         #print(n_accepts, n_iter, state["logLikehood"])
         #   print(state["tree"])
 
-        if n_iter % args.thin == 0:
-            print(n_accepts, n_iter, current_ll, proposed_ll)
+    if n_iter % args.thin == 0:
+        print(n_accepts, n_iter, current_ll, proposed_ll)
             #print(state["tree"])
 
 tree_file.close()
