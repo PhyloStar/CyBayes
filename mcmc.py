@@ -7,6 +7,7 @@ import multiprocessing as mp
 np.random.seed(1234)
 from scipy.stats import dirichlet, expon
 import argparse
+from functools import partial
 
 n_chars, n_taxa, alphabet, taxa, n_sites = None, None, None, None, None
 bl_exp_scale = 0.1
@@ -25,15 +26,29 @@ def site2mat(site):
         ll_mat[k] = x
     return ll_mat
 
+def update_LL(state):
+    logLikehood = 0.0
+    for idx in range(n_sites):
+        logLikehood += ML(state["pi"], state["transitionMat"], state["postorder"], state["root"], ll_mats[idx])
+    return logLikehood
+
+def prior_probs(param, val):
+    if param == "pi":
+        return dirichlet.logpdf(val, alpha=prior_pi)
+    elif param == "rates":
+        return dirichlet.logpdf(val, alpha=prior_er)
 
 def ML(pi, p_t, edges, root, ll_mat):
-    LL_mat = defaultdict(lambda: 1)
-    
+    #LL_mat = defaultdict(lambda: 1)
+    LL_mat = ll_mat.copy()
     for parent, child in edges[::-1]:
-        if child in taxa:
-            LL_mat[parent] *= np.dot(p_t[parent,child],ll_mat[child])
-        else:
-            LL_mat[parent] *= np.dot(p_t[parent,child],LL_mat[child])
+        LL_mat[parent] *= np.dot(p_t[parent,child],LL_mat[child])
+    
+    #for parent, child in edges[::-1]:
+    #    if child in taxa:
+    #        LL_mat[parent] *= np.dot(p_t[parent,child],ll_mat[child])
+    #    else:
+    #        LL_mat[parent] *= np.dot(p_t[parent,child],LL_mat[child])
     
     return np.log(np.dot(LL_mat[root], pi))
 
@@ -63,19 +78,7 @@ def initialize():
     state["transitionMat"] = get_prob_t(state["pi"], state["rates"], state["tree"], state["postorder"])
     return state
 
-def update_LL(state):
-    logLikehood = 0.0
-    for idx in range(n_sites):
-        logLikehood += ML(state["pi"], state["transitionMat"], state["postorder"], state["root"], ll_mats[idx])
-    return logLikehood
 
-def prior_probs(param, val):
-    if param == "pi":
-        return dirichlet.logpdf(val, alpha=prior_pi)
-    elif param == "rates":
-        return dirichlet.logpdf(val, alpha=prior_er)
-    elif param == "bl":
-        return expon.logpdf(x, scale=bl_exp_scale)
 
 
 parser = argparse.ArgumentParser()
