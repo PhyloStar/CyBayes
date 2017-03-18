@@ -102,8 +102,8 @@ if args.model == "F81":
     params_list = ["pi", "bl", "tree"]
     weights = [0.2, 0.4, 0.4]
 elif args.model == "GTR":
-    params_list = ["pi", "rates", "tree", "bl"]#, "tree"]#tree", "bl"]
-    weights = [0.2, 0.2, 0.3, 0.3]#, 0.4]
+    params_list = ["pi", "tree", "bl"]#, "tree"]#tree", "bl"]
+    weights = [0.2, 0.4, 0.4]#, 0.4]
 elif args.model == "JC":
     params_list = ["bl", "tree"]
     weights = [0.5, 0.5]
@@ -115,7 +115,7 @@ moves_dict = {"pi": [params_moves.mvDirichlet], "rates": [params_moves.mvDirichl
 n_accepts = 0.0
 samples = []
 
-tree_file = open(args.input_file.split("/")[1],"w")
+#tree_file = open(args.input_file.split("/")[1],"w")
 
 for n_iter in range(1, args.n_gen+1):
     propose_state = state.copy()
@@ -167,6 +167,6 @@ for n_iter in range(1, args.n_gen+1):
         print(n_accepts, n_iter, current_ll, proposed_ll)
             #print(state["tree"])
 
-tree_file.close()
+#tree_file.close()
 
 
