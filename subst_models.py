@@ -17,7 +17,7 @@ def ptF81(pi,d):
     beta = 1/(1-np.dot(pi, pi))
     x = np.exp(-beta*d)
     y = 1.0-x
-    p_t = np.reshape(np.repeat(pi*y,n_states),(n_states,n_states)).T+np.diag(np.repeat(x, n_states))
+    p_t = np.reshape(np.repeat(pi*y,n_states),(n_states,n_states)).T+np.eye(n_states)*x
     return p_t
 
 def ptJC(n_states, d):
@@ -28,13 +28,13 @@ def ptJC(n_states, d):
     beta = 1.0/(1.0-pi)
     x = np.exp(-beta*d)
     y = 1.0-x
-    p_t = np.reshape(np.repeat(pi*y,n_states*n_states),(n_states,n_states)).T+np.diag(np.repeat(x, n_states))
+    p_t = np.reshape(np.repeat(pi*y,n_states*n_states),(n_states,n_states)).T+np.eye(n_states)*x
     return p_t
 
 def fnF81(pi):
     """Vectorize the function"""
     n_states = pi.shape[0]
-    Q = np.reshape(np.repeat(pi,n_states),(n_states,n_states)).T-np.diag(np.repeat(1,n_states))
+    Q = np.reshape(np.repeat(pi,n_states),(n_states,n_states)).T-np.eye(n_states)
     beta = 1/(1-np.dot(pi, pi))
     Q = Q*beta
     return Q
@@ -58,7 +58,7 @@ def fnGTR(er, pi):
 
     X = np.diag(-np.dot(pi,R)/pi)
     R = R + X
-    Pi = np.diag(pi)
+    Pi = np.eye(n_states)*pi
     #print("pi ", pi)
     #print("er ", er)
     #print("R ", R)
