@@ -128,6 +128,8 @@ n_taxa, n_chars, alphabet, site_dict, taxa, n_sites = utils.readPhy(args.input_f
 n_rates = int(n_chars*(n_chars-1)/2)
 prior_pi = np.array([1]*n_chars)
 prior_er = np.array([1]*n_rates)
+iu1 = np.triu_indices(n_chars,1)
+
 
 #sites = utils.transform(site_dict)
 #ll_mats = [site2mat(sites[idx]) for idx in range(n_sites)]

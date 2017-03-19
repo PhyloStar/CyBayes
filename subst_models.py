@@ -10,6 +10,16 @@ def init_pi_er(n_states, model):
     er=np.random.dirichlet(np.repeat(1,n_states*(n_states-1)/2))
     return pi, er
 
+def ptF811(pi,d):
+    """Compute the Probability matrix under a F81 model
+    """
+    n_states = pi.shape[0]
+    beta = 1/(1-np.dot(pi, pi))
+    x = np.exp(-beta*d)
+    y = 1.0-x
+    p_t = np.reshape(np.repeat(pi*y,n_states),(n_states,n_states)).T+np.eye(n_states)*x
+    return p_t
+
 def ptF81(pi,d):
     """Compute the Probability matrix under a F81 model
     """
@@ -17,6 +27,18 @@ def ptF81(pi,d):
     beta = 1/(1-np.dot(pi, pi))
     x = np.exp(-beta*d)
     y = 1.0-x
+    p_t = np.array([pi*y]*n_states)+np.eye(n_states)*x
+    #p_t = np.reshape(np.repeat(pi*y,n_states),(n_states,n_states)).T+np.eye(n_states)*x
+    return p_t
+
+def ptF811(pi,d):
+    """Compute the Probability matrix under a F81 model
+    """
+    n_states = pi.shape[0]
+    beta = 1/(1-np.dot(pi, pi))
+    x = np.exp(-beta*d)
+    y = 1.0-x
+    #p_t = np.array([pi*y]*n_states)+np.eye(n_states)*x
     p_t = np.reshape(np.repeat(pi*y,n_states),(n_states,n_states)).T+np.eye(n_states)*x
     return p_t
 
@@ -28,7 +50,8 @@ def ptJC(n_states, d):
     beta = 1.0/(1.0-pi)
     x = np.exp(-beta*d)
     y = 1.0-x
-    p_t = np.reshape(np.repeat(pi*y,n_states*n_states),(n_states,n_states)).T+np.eye(n_states)*x
+    p_t = np.array([[pi*y]*n_states]*n_states)+np.eye(n_states)*x
+    #p_t = np.reshape(np.repeat(pi*y,n_states*n_states),(n_states,n_states)).T+np.eye(n_states)*x
     return p_t
 
 def fnF81(pi):
