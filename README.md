@@ -24,6 +24,10 @@ optional arguments:
   -t THIN, --thin THIN  Number of generations
   
   ```
+# Output
+- Returns a .params file that can be viewed in Tracer.
+- Returns a .trees file that can be viewed in FigTree.
+
 # Requirements
 - Python3, Scipy, and Numpy
  
