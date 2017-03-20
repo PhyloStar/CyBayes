@@ -10,7 +10,7 @@ def readPhy(fname):
     for line in f:
         if len(line.strip()) < 1:
             continue
-        taxa, char_vector = line.strip().split("\t")
+        taxa, char_vector = line.strip().split()
         taxa = taxa.replace(" ","")
         char_vector = char_vector.replace(" ","")
         for ch in char_vector:

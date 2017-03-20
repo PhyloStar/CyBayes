@@ -146,31 +146,38 @@ print(init_state["logLikehood"])
 
 if args.model == "F81":
     params_list = ["pi", "bl", "tree"]
-    weights = [0.2, 0.4, 0.4]
+    weights = [0.2, 0.5, 0.3]
 elif args.model == "GTR":
     params_list = ["pi","rates", "tree", "bl"]#, "tree"]#tree", "bl"]
-    weights = [0.2, 0.2, 0.3, 0.3]#0.4, 0.4, ]#, 0.4]
+    weights = [0.1, 0.1, 0.4, 0.4]#0.4, 0.4, ]#, 0.4]
 elif args.model == "JC":
     params_list = ["bl", "tree"]
     weights = [0.5, 0.5]
 
 
-
-moves_dict = {"pi": [params_moves.mvDirichlet], "rates": [params_moves.mvDirichlet], "tree":[tree_helper.rooted_NNI], "bl":[tree_helper.scale_edge]}
+tree_move_weights = [0.6, 0.0, 0.4]
+moves_count = defaultdict(float)
+accepts_count = defaultdict(float)
+moves_dict = {"pi": [params_moves.mvDirichlet], "rates": [params_moves.mvDualSlider], "tree":[tree_helper.rooted_NNI, tree_helper.NNI_swap_subtree,tree_helper.externalSPR], "bl":[tree_helper.scale_edge]}
 
 n_accepts = 0.0
 samples = []
 
-#tree_file = open(args.input_file.split("/")[1],"w")
+params_fileWriter = open(args.input_file.split("/")[1]+".params","w")
+print("Iteration", "logLikehood", "Tree Length", sep="\t", file=params_fileWriter)
 
 for n_iter in range(1, args.n_gen+1):
     propose_state = state.copy()
     current_ll, proposed_ll, ll_ratio, hr = 0.0, 0.0, 0.0, 0.0
     
     param_select = np.random.choice(params_list, p=weights)
-    move = random.choice(moves_dict[param_select])
+    if param_select == "tree":
+        move = np.random.choice(moves_dict[param_select], p=tree_move_weights)
+    else:
+        move = np.random.choice(moves_dict[param_select])
     #print("Selected move ", param_select, move.__name__)
-    
+
+    moves_count[param_select,move.__name__] += 1
     if param_select in ["pi", "rates"]:
         new_param, hr = move(propose_state[param_select])
         propose_state[param_select] = new_param
@@ -183,7 +190,7 @@ for n_iter in range(1, args.n_gen+1):
         propose_state["tree"] = temp_edges_dict
         
     elif param_select == "tree":
-        temp_edges_dict, prop_post_order = move(propose_state[param_select].copy(), propose_state["root"], taxa)
+        temp_edges_dict, prop_post_order, hr = move(propose_state[param_select].copy(), propose_state["root"], taxa)
         propose_state["tree"] = temp_edges_dict
         propose_state["postorder"] = prop_post_order
     
@@ -205,14 +212,20 @@ for n_iter in range(1, args.n_gen+1):
             state[param_select] = propose_state[param_select]
         state["transitionMat"] = propose_state["transitionMat"].copy()
         state["logLikehood"] = proposed_ll
+        accepts_count[param_select,move.__name__] += 1
         #if n_iter % args.thin == 0:
         #print(n_accepts, n_iter, state["logLikehood"])
         #   print(state["tree"])
-    del propose_state
+    #del propose_state
     if n_iter % args.thin == 0:
-        print(n_accepts, n_iter, current_ll, proposed_ll)
-            #print(state["tree"])
+        TL = sum(state["tree"].values())
+        sampled_tree = tree_helper.adjlist2newickBL(state["tree"], tree_helper.adjlist2nodes_dict(state["tree"]), state["root"], taxa)+";"
+        print(n_iter, state["logLikehood"], TL)
+        print(n_iter, state["logLikehood"], TL, sep="\t", file=params_fileWriter)
+        #print(sampled_tree)
 
-#tree_file.close()
+
+for k, v in moves_count.items():
+    print(k, accepts_count[k], v)
 
 

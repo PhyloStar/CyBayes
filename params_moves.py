@@ -4,6 +4,7 @@ import random
 
 dir_alpha = 100.0
 scaler_alpha = 1.25
+epsilon = 1e-10
 
 def mvDirichlet(pi):
     pi_new = np.random.dirichlet(dir_alpha*pi)
@@ -14,7 +15,7 @@ def mvDirichlet(pi):
 def mvDualSlider(pi):
     i, j = random.sample(range(pi.shape[0]),2 )
     sum_ij = pi[i]+pi[j]
-    x = np.random.uniform(0, sum_ij)
+    x = random.uniform(epsilon, sum_ij)
     y = sum_ij -x
     pi[i], pi[j] = x, y
     return pi, 0.0
