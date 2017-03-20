@@ -201,7 +201,7 @@ for n_iter in range(1, args.n_gen+1):
         sampled_tree = tree_helper.adjlist2newickBL(state["tree"], tree_helper.adjlist2nodes_dict(state["tree"]), state["root"], taxa)+";"
         print(n_iter, state["logLikehood"], TL)
         print(n_iter, state["logLikehood"], TL, sep="\t", file=params_fileWriter)
-        print(n_iter, sampled_tree, sep="\t", file=trees_fileWriter)
+        print(n_iter, sampled_tree, state["logLikehood"], sep="\t", file=trees_fileWriter)
 
 params_fileWriter.close()
 trees_fileWriter.close()
