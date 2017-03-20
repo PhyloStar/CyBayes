@@ -1,4 +1,5 @@
 from collections import defaultdict
+import numpy as np
 
 def readPhy(fname):
     site_dict = defaultdict()
@@ -20,7 +21,8 @@ def readPhy(fname):
         taxa_list.append(taxa)
     f.close()
     n_chars = len(alphabet)
-    return n_leaves, n_chars, alphabet, site_dict, taxa_list, n_sites
+    ll_mats= sites2Mat(site_dict, n_chars, alphabet)
+    return n_leaves, n_chars, alphabet, site_dict, ll_mats,taxa_list, n_sites
     
 def transform(site_dict):
     sites = defaultdict(lambda: defaultdict())
@@ -32,3 +34,24 @@ def transform(site_dict):
 def print_mcmcstate(mcmc_state):
     for k, v in mcmc_state.items():
         print(k, v)
+
+def sites2Mat(sites, n_chars, alphabet):
+    ll_mat = defaultdict(list)
+    for k, v in sites.items():
+        for ch in v:
+            if ch in ["?", "-"]:
+                x = np.ones(n_chars)
+            else:
+                x = np.zeros(n_chars)
+                idx = alphabet.index(ch)
+                x[idx] = 1.0
+            ll_mat[k].append(x)
+
+    for k, v in ll_mat.items():
+        ll_mat[k] = np.array(v).T
+        #print(k, np.array(v))
+    
+    return ll_mat
+    
+    
+    

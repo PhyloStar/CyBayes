@@ -27,22 +27,7 @@ def site2mat(site):
         ll_mat[k] = x
     return ll_mat
 
-def sites2Mat(sites):
-    ll_mat = defaultdict(list)
-    for k, v in sites.items():
-        for ch in v:
-            if ch in ["?", "-"]:
-                x = np.ones(n_chars)
-            else:
-                x = np.zeros(n_chars)
-                idx = alphabet.index(ch)
-                x[idx] = 1.0
-            ll_mat[k].append(x)
 
-    for k, v in ll_mat.items():
-        ll_mat[k] = np.array(v).T
-        #print(k, np.array(v))
-    return ll_mat
 
 
 def update_LL(state):
@@ -91,7 +76,6 @@ def matML(state):
     ll = np.sum(np.log(np.dot(pi, LL_mat[root])))
     return ll
     
-
 def get_prob_t(pi, rates, edges_dict, edges):
     p_t = defaultdict()
     for parent, child in edges[::-1]:
@@ -103,6 +87,7 @@ def get_prob_t(pi, rates, edges_dict, edges):
             Q = subst_models.fnGTR(rates, pi)
             p_t[parent,child] = linalg.expm2(Q*edges_dict[parent,child])
     return p_t
+
     
 
 def initialize():
@@ -121,20 +106,14 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-i", "--input_file", help="Input a file in Phylip format with taxa and characters separated by a TAB character",  type=str)
 parser.add_argument("-m", "--model", help="JC/F81/GTR",  type=str)
 parser.add_argument("-n","--n_gen", help="Number of generations",  type=int)
-parser.add_argument("-t","--thin", help="Number of generations",  type=int)
+parser.add_argument("-t","--thin", help="Number of generations after to print to file",  type=int)
+parser.add_argument("-o","--output_file", help="Name of the out file prefix",  type=str)
 args = parser.parse_args()
 
-n_taxa, n_chars, alphabet, site_dict, taxa, n_sites = utils.readPhy(args.input_file)
+n_taxa, n_chars, alphabet, site_dict, ll_mats, taxa, n_sites = utils.readPhy(args.input_file)
 n_rates = int(n_chars*(n_chars-1)/2)
 prior_pi = np.array([1]*n_chars)
 prior_er = np.array([1]*n_rates)
-iu1 = np.triu_indices(n_chars,1)
-
-
-#sites = utils.transform(site_dict)
-#ll_mats = [site2mat(sites[idx]) for idx in range(n_sites)]
-
-ll_mats = sites2Mat(site_dict)
 
 
 init_state = initialize()
@@ -142,7 +121,6 @@ init_state["logLikehood"] = matML(init_state)
 state = init_state.copy()
 print(init_state["logLikehood"])
 
-#sys.exit(1)
 
 if args.model == "F81":
     params_list = ["pi", "bl", "tree"]
@@ -163,7 +141,8 @@ moves_dict = {"pi": [params_moves.mvDirichlet], "rates": [params_moves.mvDualSli
 n_accepts = 0.0
 samples = []
 
-params_fileWriter = open(args.input_file.split("/")[1]+".params","w")
+params_fileWriter = open(args.output_file+".params","w")
+trees_fileWriter = open(args.output_file+".trees","w")
 print("Iteration", "logLikehood", "Tree Length", sep="\t", file=params_fileWriter)
 
 for n_iter in range(1, args.n_gen+1):
@@ -222,9 +201,10 @@ for n_iter in range(1, args.n_gen+1):
         sampled_tree = tree_helper.adjlist2newickBL(state["tree"], tree_helper.adjlist2nodes_dict(state["tree"]), state["root"], taxa)+";"
         print(n_iter, state["logLikehood"], TL)
         print(n_iter, state["logLikehood"], TL, sep="\t", file=params_fileWriter)
-        #print(sampled_tree)
+        print(n_iter, sampled_tree, sep="\t", file=trees_fileWriter)
 
-
+params_fileWriter.close()
+trees_fileWriter.close()
 for k, v in moves_count.items():
     print(k, accepts_count[k], v)
 
