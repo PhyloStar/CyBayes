@@ -11,13 +11,15 @@ def readPhy(fname):
     for line in f:
         if len(line.strip()) < 1:
             continue
-        taxa, char_vector = line.strip().split()
+        taxa, char_vector = line.strip().split("\t")
         taxa = taxa.replace(" ","")
-        char_vector = char_vector.replace(" ","")
-        for ch in char_vector:
-            if ch not in alphabet and ch not in ["?", "-"]:
-                alphabet.append(ch)
-        site_dict[taxa] = char_vector
+        #char_vector = char_vector.replace(" ","")
+        for ch in char_vector.split(" "):
+            temp_ch = ch.split("/")
+            for tch in temp_ch:
+                if tch not in alphabet and tch not in ["?", "-"]:
+                    alphabet.append(tch)
+        site_dict[taxa] = char_vector.split(" ")
         taxa_list.append(taxa)
     f.close()
     n_chars = len(alphabet)
@@ -41,6 +43,12 @@ def sites2Mat(sites, n_chars, alphabet):
         for ch in v:
             if ch in ["?", "-"]:
                 x = np.ones(n_chars)
+            elif "/" in ch:
+                y = ch.split("/")
+                x = np.zeros(n_chars)
+                for t in y:
+                    idx = alphabet.index(t)
+                    x[idx] = 1.0
             else:
                 x = np.zeros(n_chars)
                 idx = alphabet.index(ch)

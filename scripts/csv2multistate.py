@@ -2,9 +2,9 @@ import sys, string
 from collections import defaultdict
 
 cog_cnt = 1
-d = defaultdict(lambda: defaultdict())
+d = defaultdict(lambda: defaultdict(list))
 d_t = defaultdict(list)
-ALPHABET = list(string.ascii_uppercase)
+ALPHABET = list(string.ascii_letters)
 langs = []
 concepts = []
 
@@ -17,18 +17,31 @@ for line in lines[2:]:
         langs.append(arr[1])
     if arr[2] not in concepts:
         concepts.append(arr[2])
-    d[arr[2]][arr[1]] = int(arr[-1].replace("-",""))
+    
+    if len(d[arr[2]][arr[1]]) == 0 :
+        d[arr[2]][arr[1]].append(int(arr[-1].replace("-","")))
 
 for concept in d:
-    states = list(d[concept].values())
-    #print(concept, len(states))
+    states = []
+    for s in d[concept].values():
+        for t in s:
+            states.append(t)
+    #print(concept, states)
     min_state = min(states)
     for lang in langs:
         if lang not in d[concept]:
             d_t[lang].append("?")
         else:
-            d_t[lang].append(ALPHABET[d[concept][lang]-min_state])
+            z = d[concept][lang]
+            if len(z) == 1:
+                d_t[lang].append(ALPHABET[z[0]-min_state])
+            else:
+                state_arr = []
+                for x in d[concept][lang]:
+                    state_arr.append(ALPHABET[x-min_state])
+                d_t[lang].append("/".join(state_arr))
          
 print(len(langs), len(concepts))
 for lang, vector in d_t.items():
-    print(lang.ljust(40), "".join(vector), sep="\t")
+    #print(lang, vector)
+    print(lang, " ".join(vector), sep="\t")
