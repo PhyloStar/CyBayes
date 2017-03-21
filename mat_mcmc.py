@@ -115,11 +115,15 @@ n_rates = int(n_chars*(n_chars-1)/2)
 prior_pi = np.array([1]*n_chars)
 prior_er = np.array([1]*n_rates)
 
-
+print("Languages ", taxa)
+print("Alphabet ", alphabet)
 init_state = initialize()
 init_state["logLikehood"] = matML(init_state)
 state = init_state.copy()
-print(init_state["logLikehood"])
+init_tree = tree_helper.adjlist2newickBL(state["tree"], tree_helper.adjlist2nodes_dict(state["tree"]), state["root"], taxa)+";"
+print("Initial Random Tree ")
+print(init_tree)
+print("Likelihood ",init_state["logLikehood"])
 
 
 if args.model == "F81":
