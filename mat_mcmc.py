@@ -140,7 +140,7 @@ elif args.model == "JC":
 tree_move_weights = [0.6, 0.0, 0.4]
 moves_count = defaultdict(float)
 accepts_count = defaultdict(float)
-moves_dict = {"pi": [params_moves.mvDirichlet], "rates": [params_moves.mvDualSlider], "tree":[tree_helper.rooted_NNI, tree_helper.NNI_swap_subtree,tree_helper.externalSPR], "bl":[tree_helper.scale_edge]}
+moves_dict = {"pi": [params_moves.mvDualSlider], "rates": [params_moves.mvDualSlider], "tree":[tree_helper.rooted_NNI, tree_helper.NNI_swap_subtree,tree_helper.externalSPR], "bl":[tree_helper.scale_edge]}
 
 n_accepts = 0.0
 samples = []
