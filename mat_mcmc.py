@@ -107,10 +107,14 @@ parser.add_argument("-i", "--input_file", help="Input a file in Phylip format wi
 parser.add_argument("-m", "--model", help="JC/F81/GTR",  type=str)
 parser.add_argument("-n","--n_gen", help="Number of generations",  type=int)
 parser.add_argument("-t","--thin", help="Number of generations after to print to file",  type=int)
+parser.add_argument("-d","--data_type", help="Type of data if it is binary/multistate. Multistate characters should be separated by a space whereas binary need not be. Specify bin for binary and multi for multistate characters or phonetic alignments",  type=str)
 parser.add_argument("-o","--output_file", help="Name of the out file prefix",  type=str)
 args = parser.parse_args()
 
-n_taxa, n_chars, alphabet, site_dict, ll_mats, taxa, n_sites = utils.readPhy(args.input_file)
+if args.data_type == "bin":
+    n_taxa, n_chars, alphabet, site_dict, ll_mats, taxa, n_sites = utils.readBinaryPhy(args.input_file)
+elif args.data_type == "multi":
+    n_taxa, n_chars, alphabet, site_dict, ll_mats, taxa, n_sites = utils.readPhy(args.input_file)
 n_rates = int(n_chars*(n_chars-1)/2)
 prior_pi = np.array([1]*n_chars)
 prior_er = np.array([1]*n_rates)
@@ -128,16 +132,16 @@ print("Likelihood ",init_state["logLikehood"])
 
 if args.model == "F81":
     params_list = ["pi", "bl", "tree"]
-    weights = [0.2, 0.5, 0.3]
+    weights = [0.1, 0.4, 0.5]
 elif args.model == "GTR":
     params_list = ["pi","rates", "tree", "bl"]#, "tree"]#tree", "bl"]
     weights = [0.1, 0.1, 0.4, 0.4]#0.4, 0.4, ]#, 0.4]
 elif args.model == "JC":
     params_list = ["bl", "tree"]
-    weights = [0.5, 0.5]
+    weights = [0.3, 0.7]
 
 
-tree_move_weights = [0.6, 0.0, 0.4]
+tree_move_weights = [0.5, 0.2, 0.3]
 moves_count = defaultdict(float)
 accepts_count = defaultdict(float)
 moves_dict = {"pi": [params_moves.mvDualSlider], "rates": [params_moves.mvDualSlider], "tree":[tree_helper.rooted_NNI, tree_helper.NNI_swap_subtree,tree_helper.externalSPR], "bl":[tree_helper.scale_edge]}
