@@ -34,7 +34,11 @@ optional arguments:
   
   ```
   Linguistic datasets are quite different from biological morphological datasets. A Jukes-Cantor model where all the transition rates are the same is useful for estimating trees with branch lengths.
-  
+
+Example Usage:
+```
+python3 mat_mcmc.py -i data/PIE.phy -m JC -n 10000 -t 100 -o phon_ringe_jc
+```  
 # Output
 - Returns a .params file that can be viewed in [Tracer] (http://tree.bio.ed.ac.uk/software/tracer/). The .params file consists of the likelihood and the tree length for each state.
 - Returns a .trees file that can be viewed in [FigTree] (http://tree.bio.ed.ac.uk/software/figtree/).
