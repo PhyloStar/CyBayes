@@ -18,6 +18,8 @@ random.seed(12345)
 import itertools as it
 np.random.seed(1234)
 from scipy.stats import expon
+import math
+
 bl_exp_scale = 0.1
 scaler_alpha = 1.25
 
@@ -26,7 +28,7 @@ def init_tree(taxa):
     edge_dict, n_nodes = newick2bl(t)
     
     for k, v in edge_dict.items():
-        edge_dict[k] = np.random.exponential(bl_exp_scale)
+        edge_dict[k] = random.expovariate(1.0/bl_exp_scale)
     
     return edge_dict, n_nodes
 
@@ -363,12 +365,14 @@ def scale_edge(temp_edges_dict):
     #rand_edge = next(iter(temp_edges_dict))
     rand_bl = temp_edges_dict[rand_edge]
 
-    log_c = scaler_alpha*(np.random.uniform(0,1)-0.5)
-    c = np.exp(log_c)
+    log_c = scaler_alpha*(random.uniform(0,1)-0.5)
+    c = math.exp(log_c)
     rand_bl_new = rand_bl*c
     temp_edges_dict[rand_edge] = rand_bl_new
 
     prior_ratio = expon.logpdf(rand_bl_new, scale=bl_exp_scale) - expon.logpdf(rand_bl, scale=bl_exp_scale)
+    
+    #prior_ratio = -math.log(bl_exp_scale*rand_bl_new) + math.log(bl_exp_scale*rand_bl)
     #prior_ratio = bl_exp_scale*(rand_bl-rand_bl_new)
     
     return temp_edges_dict, log_c+prior_ratio

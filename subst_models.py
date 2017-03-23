@@ -20,6 +20,19 @@ def ptF811(pi,d):
     p_t = np.reshape(np.repeat(pi*y,n_states),(n_states,n_states)).T+np.eye(n_states)*x
     return p_t
 
+def binaryptF81(pi, d):
+    """Compute the probability matrix for binary characters
+    """
+    p_t = np.empty((2,2))
+    beta = 1/(1-np.dot(pi, pi))
+    x = np.exp(-beta*d)
+    y = 1.0-x
+    p_t[0][0] = pi[0]+pi[1]*x
+    p_t[0][1] = pi[1]*y
+    p_t[1][0] = pi[0]*y
+    p_t[1][1] = pi[1]+pi[0]*x
+    return p_t
+
 def ptF81(pi,d):
     """Compute the Probability matrix under a F81 model
     """

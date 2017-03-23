@@ -7,10 +7,10 @@ import multiprocessing as mp
 np.random.seed(1234)
 from scipy.stats import dirichlet, expon
 import argparse
-from functools import partial
+from ML import matML_dot
 
 n_chars, n_taxa, alphabet, taxa, n_sites = None, None, None, None, None
-bl_exp_scale = 0.1
+
 gemv = linalg.get_blas_funcs("gemv")
 
 def site2mat(site):
@@ -27,68 +27,26 @@ def site2mat(site):
         ll_mat[k] = x
     return ll_mat
 
-
-
-
-def update_LL(state):
-    logLikehood = 0.0
-    for idx in range(n_sites):
-        logLikehood += ML(state["pi"], state["transitionMat"], state["postorder"], state["root"], ll_mats[idx])
-    return logLikehood
-
 def prior_probs(param, val):
     if param == "pi":
         return dirichlet.logpdf(val, alpha=prior_pi)
     elif param == "rates":
         return dirichlet.logpdf(val, alpha=prior_er)
 
-def ML(pi, p_t, edges, root, ll_mat):
-    #LL_mat = defaultdict(lambda: 1)
-    LL_mat = ll_mat.copy()
-    for parent, child in edges[::-1]:
-        LL_mat[parent] *= np.dot(p_t[parent,child],LL_mat[child])
-        
-    return np.log(np.dot(LL_mat[root], pi))
-
-def matML(state):
-    LL_mat = defaultdict()
-    root = state["root"]
-    p_t = state["transitionMat"]
-    pi = state["pi"]
-    edges = state["postorder"]
-    
-    for parent, child in edges[::-1]:
-        if child in taxa:
-            if parent not in LL_mat:
-                #print(child, ll_mats[child], "\n", ll_mats[child].shape,"\n")
-                #print(p_t[parent,child])
-                LL_mat[parent] = np.dot(p_t[parent,child], ll_mats[child])
-            else:
-                LL_mat[parent] *= np.dot(p_t[parent,child], ll_mats[child])
-        else:
-            if parent not in LL_mat:
-                LL_mat[parent] = np.dot(p_t[parent,child], LL_mat[child])
-            else:
-                LL_mat[parent] *= np.dot(p_t[parent,child], LL_mat[child])
-        #print(parent, LL_mat[parent])
-    #print("Root ", root,LL_mat[root], LL_mat[root].shape,pi, pi.shape, sep="\n")
-    #print(np.dot(pi, LL_mat[root]))
-    ll = np.sum(np.log(np.dot(pi, LL_mat[root])))
-    return ll
-    
 def get_prob_t(pi, rates, edges_dict, edges):
     p_t = defaultdict()
     for parent, child in edges[::-1]:
         if args.model == "F81":
-            p_t[parent,child] = subst_models.ptF81(pi, edges_dict[parent,child])
+            if args.data_type == "multi":
+                p_t[parent,child] = subst_models.ptF81(pi, edges_dict[parent,child])
+            elif args.data_type == "bin":
+                p_t[parent,child] = subst_models.binaryptF81(pi, edges_dict[parent,child])
         elif args.model == "JC":
             p_t[parent,child] =  subst_models.ptJC(n_chars, edges_dict[parent,child])
         elif args.model == "GTR":
             Q = subst_models.fnGTR(rates, pi)
             p_t[parent,child] = linalg.expm2(Q*edges_dict[parent,child])
     return p_t
-
-    
 
 def initialize():
     state = defaultdict()
@@ -122,7 +80,7 @@ prior_er = np.array([1]*n_rates)
 print("Languages ", taxa)
 print("Alphabet ", alphabet)
 init_state = initialize()
-init_state["logLikehood"] = matML(init_state)
+init_state["logLikehood"] = matML_dot(init_state, taxa, ll_mats)
 state = init_state.copy()
 init_tree = tree_helper.adjlist2newickBL(state["tree"], tree_helper.adjlist2nodes_dict(state["tree"]), state["root"], taxa)+";"
 print("Initial Random Tree ")
@@ -132,16 +90,16 @@ print("Likelihood ",init_state["logLikehood"])
 
 if args.model == "F81":
     params_list = ["pi", "bl", "tree"]
-    weights = [0.1, 0.4, 0.5]
+    weights = [0.1, 0.6, 0.3]
 elif args.model == "GTR":
     params_list = ["pi","rates", "tree", "bl"]#, "tree"]#tree", "bl"]
     weights = [0.1, 0.1, 0.4, 0.4]#0.4, 0.4, ]#, 0.4]
 elif args.model == "JC":
     params_list = ["bl", "tree"]
-    weights = [0.3, 0.7]
+    weights = [0.7, 0.3]
 
 
-tree_move_weights = [0.5, 0.2, 0.3]
+tree_move_weights = [0.3, 0.0, 0.7]
 moves_count = defaultdict(float)
 accepts_count = defaultdict(float)
 moves_dict = {"pi": [params_moves.mvDualSlider], "rates": [params_moves.mvDualSlider], "tree":[tree_helper.rooted_NNI, tree_helper.NNI_swap_subtree,tree_helper.externalSPR], "bl":[tree_helper.scale_edge]}
@@ -184,7 +142,7 @@ for n_iter in range(1, args.n_gen+1):
     propose_state["transitionMat"] = get_prob_t(propose_state["pi"], propose_state["rates"], propose_state["tree"], propose_state["postorder"])
     
     current_ll = state["logLikehood"]
-    proposed_ll = matML(propose_state)
+    proposed_ll = matML_dot(propose_state, taxa, ll_mats)
 
     ll_ratio = proposed_ll - current_ll + hr
 

@@ -80,9 +80,9 @@ def sites2Mat(sites, n_chars, alphabet):
             ll_mat[k].append(x)
 
     for k, v in ll_mat.items():
-        ll_mat[k] = np.array(v).T
+        ll_mat[k] = np.array(v).T#np.ascontiguousarray(np.array(v).T, dtype=np.float32)
         #print(k, np.array(v))
-    
+        #print(ll_mat[k].flags)
     return ll_mat
     
     

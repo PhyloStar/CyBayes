@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.stats import dirichlet
-import random
+import random, math
 
 dir_alpha = 100.0
 scaler_alpha = 1.25
@@ -22,13 +22,13 @@ def mvDualSlider(pi):
 
 def mvScaler(x):
     log_c = scaler_alpha*(np.random.uniform()-0.5)
-    c = np.exp(log_c)
+    c = math.exp(log_c)
     x_new = x*c
     return x_new, log_c
 
 def mvVecScaler(X):
     log_c = scaler_alpha*(np.random.uniform()-0.5)
-    c = np.exp(log_c)
+    c = math.exp(log_c)
     X_new = X*c
     return X_new, log_c
 
