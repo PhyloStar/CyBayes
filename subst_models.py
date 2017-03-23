@@ -49,8 +49,13 @@ def ptJC(n_states, d):
     pi = 1.0/n_states
     beta = 1.0/(1.0-pi)
     x = np.exp(-beta*d)
-    y = 1.0-x
-    p_t = np.array([[pi*y]*n_states]*n_states)+np.eye(n_states)*x
+    y = pi*(1.0-x)
+    #p_t = np.full((n_states, n_states), y)
+    #p_t = p_t + np.eye(n_states)*x
+    p_t = np.empty((n_states, n_states))
+    p_t.fill(y)
+    np.fill_diagonal(p_t, x+y)
+    #p_t = np.array([[y]*n_states]*n_states)+np.eye(n_states)*x
     #p_t = np.reshape(np.repeat(pi*y,n_states*n_states),(n_states,n_states)).T+np.eye(n_states)*x
     return p_t
 
