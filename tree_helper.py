@@ -360,6 +360,23 @@ def swap_top_children(edges_list, root_node, leaves):
     
     return edges_list, new_postorder
 
+def scale_all_edges(temp_edges_dict):
+    n_edges = len(temp_edges_dict.keys())
+    
+    log_c = scaler_alpha*(random.uniform(0,1)-0.5)
+    c = math.exp(log_c)
+    
+    prior_ratio = 0.0
+    
+    for edge, length in temp_edges_dict.items():
+        temp_edges_dict[edge] = length*c
+        #prior_ratio += expon.logpdf(length*c, scale=bl_exp_scale) - expon.logpdf(length, scale=bl_exp_scale)
+        prior_ratio += -(length*c-length)/bl_exp_scale
+    
+    prior_ratio += n_edges*log_c
+    
+    return temp_edges_dict, prior_ratio
+
 def scale_edge(temp_edges_dict):
     rand_edge = random.choice(list(temp_edges_dict))
     #rand_edge = next(iter(temp_edges_dict))
@@ -370,7 +387,9 @@ def scale_edge(temp_edges_dict):
     rand_bl_new = rand_bl*c
     temp_edges_dict[rand_edge] = rand_bl_new
 
-    prior_ratio = expon.logpdf(rand_bl_new, scale=bl_exp_scale) - expon.logpdf(rand_bl, scale=bl_exp_scale)
+    #prior_ratio = expon.logpdf(rand_bl_new, scale=bl_exp_scale) - expon.logpdf(rand_bl, scale=bl_exp_scale)
+    
+    prior_ratio = -(rand_bl_new-rand_bl)/bl_exp_scale
     
     #prior_ratio = -math.log(bl_exp_scale*rand_bl_new) + math.log(bl_exp_scale*rand_bl)
     #prior_ratio = bl_exp_scale*(rand_bl-rand_bl_new)

@@ -6,8 +6,8 @@ from scipy import linalg
 import multiprocessing as mp
 np.random.seed(1234)
 from scipy.stats import dirichlet, expon
-import argparse
-from ML import matML_dot
+import argparse, math
+from ML import matML_dot, matML_inplace
 
 n_chars, n_taxa, alphabet, taxa, n_sites = None, None, None, None, None
 
@@ -35,14 +35,26 @@ def prior_probs(param, val):
 
 def get_prob_t(pi, rates, edges_dict, edges):
     p_t = defaultdict()
+    if args.model == "F81":
+        beta = 1/(1-np.dot(pi, pi))        
+    elif args.model == "JC":
+        beta = n_chars/(n_chars-1)
+        #print("before ", beta)
+    n_states = pi.shape[0]
     for parent, child in edges[::-1]:
+        d = edges_dict[parent,child]
         if args.model == "F81":
             if args.data_type == "multi":
-                p_t[parent,child] = subst_models.ptF81(pi, edges_dict[parent,child])
+                p_t[parent,child] = subst_models.ptF81(pi, d)
             elif args.data_type == "bin":
-                p_t[parent,child] = subst_models.binaryptF81(pi, edges_dict[parent,child])
+                x = math.exp(-beta*d)
+                y = 1.0-x
+                p_t[parent,child] = subst_models.binaryptF81(pi, x, y)
         elif args.model == "JC":
-            p_t[parent,child] =  subst_models.ptJC(n_chars, edges_dict[parent,child])
+            x = math.exp(-beta*d)
+            y = (1.0-x)/n_chars        
+            #p_t[parent,child] =  subst_models.fastJC(n_chars, x, y)
+            p_t[parent,child] =  subst_models.ptJC(n_chars, x, y)
         elif args.model == "GTR":
             Q = subst_models.fnGTR(rates, pi)
             p_t[parent,child] = linalg.expm2(Q*edges_dict[parent,child])
@@ -80,7 +92,7 @@ prior_er = np.array([1]*n_rates)
 print("Languages ", taxa)
 print("Alphabet ", alphabet)
 init_state = initialize()
-init_state["logLikehood"] = matML_dot(init_state, taxa, ll_mats)
+init_state["logLikehood"] = matML_inplace(init_state, taxa, ll_mats)
 state = init_state.copy()
 init_tree = tree_helper.adjlist2newickBL(state["tree"], tree_helper.adjlist2nodes_dict(state["tree"]), state["root"], taxa)+";"
 print("Initial Random Tree ")
@@ -100,9 +112,13 @@ elif args.model == "JC":
 
 
 tree_move_weights = [0.3, 0.0, 0.7]
+bl_move_weights = [0.7, 0.3]
 moves_count = defaultdict(float)
 accepts_count = defaultdict(float)
-moves_dict = {"pi": [params_moves.mvDualSlider], "rates": [params_moves.mvDualSlider], "tree":[tree_helper.rooted_NNI, tree_helper.NNI_swap_subtree,tree_helper.externalSPR], "bl":[tree_helper.scale_edge]}
+moves_dict = {"pi": [params_moves.mvDualSlider], "rates": [params_moves.mvDualSlider], "tree":[tree_helper.rooted_NNI, tree_helper.NNI_swap_subtree,tree_helper.externalSPR], "bl":[tree_helper.scale_edge, tree_helper.scale_all_edges]}
+
+#if n_chars == 2 and args.model == "F81":
+#    moves_dict["pi"].append(params_moves.mvDirichlet)
 
 n_accepts = 0.0
 samples = []
@@ -118,6 +134,8 @@ for n_iter in range(1, args.n_gen+1):
     param_select = np.random.choice(params_list, p=weights)
     if param_select == "tree":
         move = np.random.choice(moves_dict[param_select], p=tree_move_weights)
+    elif param_select == "bl":
+        move = np.random.choice(moves_dict[param_select], p=bl_move_weights)
     else:
         move = np.random.choice(moves_dict[param_select])
     #print("Selected move ", param_select, move.__name__)
@@ -126,9 +144,9 @@ for n_iter in range(1, args.n_gen+1):
     if param_select in ["pi", "rates"]:
         new_param, hr = move(propose_state[param_select])
         propose_state[param_select] = new_param
-        current_prior = prior_probs(param_select, state[param_select])
-        prop_prior = prior_probs(param_select, propose_state[param_select])
-        hr += prop_prior-current_prior
+        #current_prior = prior_probs(param_select, state[param_select])
+        #prop_prior = prior_probs(param_select, propose_state[param_select])
+        #hr += prop_prior-current_prior
         
     elif param_select == "bl":
         temp_edges_dict, hr = move(propose_state["tree"].copy())
@@ -142,11 +160,11 @@ for n_iter in range(1, args.n_gen+1):
     propose_state["transitionMat"] = get_prob_t(propose_state["pi"], propose_state["rates"], propose_state["tree"], propose_state["postorder"])
     
     current_ll = state["logLikehood"]
-    proposed_ll = matML_dot(propose_state, taxa, ll_mats)
+    proposed_ll = matML_inplace(propose_state, taxa, ll_mats)
 
     ll_ratio = proposed_ll - current_ll + hr
 
-    if np.log(random.random()) < ll_ratio:
+    if math.log(random.random()) < ll_ratio:
         n_accepts += 1
         if param_select == "bl":
             state["tree"] = propose_state["tree"]

@@ -20,13 +20,10 @@ def ptF811(pi,d):
     p_t = np.reshape(np.repeat(pi*y,n_states),(n_states,n_states)).T+np.eye(n_states)*x
     return p_t
 
-def binaryptF81(pi, d):
+def binaryptF81(pi, x, y):
     """Compute the probability matrix for binary characters
     """
     p_t = np.empty((2,2))
-    beta = 1/(1-np.dot(pi, pi))
-    x = np.exp(-beta*d)
-    y = 1.0-x
     p_t[0][0] = pi[0]+pi[1]*x
     p_t[0][1] = pi[1]*y
     p_t[1][0] = pi[0]*y
@@ -55,21 +52,23 @@ def ptF811(pi,d):
     p_t = np.reshape(np.repeat(pi*y,n_states),(n_states,n_states)).T+np.eye(n_states)*x
     return p_t
 
-def ptJC(n_states, d):
+def fastJC(n_states, x, y):
+    JC = np.empty((n_states, n_states))
+    JC.fill(y)
+    np.fill_diagonal(JC, x+y)
+    return JC    
+
+def ptJC(n_states, x, y):
     """Compute the Probability matrix under a F81 model
     """
-    #n_states = pi.shape[0]
-    pi = 1.0/n_states
-    beta = 1.0/(1.0-pi)
-    x = np.exp(-beta*d)
-    y = pi*(1.0-x)
-    #p_t = np.full((n_states, n_states), y)
-    #p_t = p_t + np.eye(n_states)*x
+    #pi = 1.0/n_states
+    #beta = 1.0/(1.0-pi)
+    #print("in ptJC ", beta)
+    #x = np.exp(-beta*d)
+    #y = pi*(1.0-x)
     p_t = np.empty((n_states, n_states))
     p_t.fill(y)
     np.fill_diagonal(p_t, x+y)
-    #p_t = np.array([[y]*n_states]*n_states)+np.eye(n_states)*x
-    #p_t = np.reshape(np.repeat(pi*y,n_states*n_states),(n_states,n_states)).T+np.eye(n_states)*x
     return p_t
 
 def fnF81(pi):
