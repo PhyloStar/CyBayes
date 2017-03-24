@@ -7,7 +7,7 @@ import multiprocessing as mp
 np.random.seed(1234)
 from scipy.stats import dirichlet, expon
 import argparse, math
-from ML import matML_dot, matML_inplace, matML_gemm
+from ML import matML_dot, matML_inplace, matML_inplace_bl
 
 n_chars, n_taxa, alphabet, taxa, n_sites = None, None, None, None, None
 
@@ -36,10 +36,10 @@ def prior_probs(param, val):
 def get_prob_t(pi, rates, edges_dict, edges):
     p_t = defaultdict()
     if args.model == "F81":
-        beta = 1/(1-np.dot(pi, pi))        
+        beta = 1/(1-np.dot(pi, pi))
     elif args.model == "JC":
         beta = n_chars/(n_chars-1)
-        #print("before ", beta)
+
     n_states = pi.shape[0]
     for parent, child in edges[::-1]:
         d = edges_dict[parent,child]
@@ -85,14 +85,17 @@ if args.data_type == "bin":
     n_taxa, n_chars, alphabet, site_dict, ll_mats, taxa, n_sites = utils.readBinaryPhy(args.input_file)
 elif args.data_type == "multi":
     n_taxa, n_chars, alphabet, site_dict, ll_mats, taxa, n_sites = utils.readPhy(args.input_file)
+
 n_rates = int(n_chars*(n_chars-1)/2)
 prior_pi = np.array([1]*n_chars)
 prior_er = np.array([1]*n_rates)
 
 print("Languages ", taxa)
 print("Alphabet ", alphabet)
+
 init_state = initialize()
-init_state["logLikehood"] = matML_inplace(init_state, taxa, ll_mats)
+init_state["logLikehood"], init_state["logLikehoodMat"] = matML_inplace(init_state, taxa, ll_mats)
+
 state = init_state.copy()
 init_tree = tree_helper.adjlist2newickBL(state["tree"], tree_helper.adjlist2nodes_dict(state["tree"]), state["root"], taxa)+";"
 print("Initial Random Tree ")
@@ -102,23 +105,24 @@ print("Likelihood ",init_state["logLikehood"])
 
 if args.model == "F81":
     params_list = ["pi", "bl", "tree"]
-    weights = [0.1, 0.6, 0.3]
+    weights = np.array([0.5, 20, 15])
 elif args.model == "GTR":
-    params_list = ["pi","rates", "tree", "bl"]#, "tree"]#tree", "bl"]
-    weights = [0.1, 0.1, 0.4, 0.4]#0.4, 0.4, ]#, 0.4]
+    params_list = ["pi","rates", "tree", "bl"]
+    weights = np.array([0.5, 2, 15, 20])
 elif args.model == "JC":
     params_list = ["bl", "tree"]
-    weights = [0.7, 0.3]
+    weights = np.array([20, 15])
 
+tree_move_weights = np.array([5,0,5])
+bl_move_weights = np.array([10])
 
-tree_move_weights = [0.3, 0.0, 0.7]
-bl_move_weights = [0.7, 0.3]
+weights = weights/sum(weights)
+tree_move_weights = tree_move_weights/sum(tree_move_weights)
+bl_move_weights = bl_move_weights/sum(bl_move_weights)
+
 moves_count = defaultdict(float)
 accepts_count = defaultdict(float)
-moves_dict = {"pi": [params_moves.mvDualSlider], "rates": [params_moves.mvDualSlider], "tree":[tree_helper.rooted_NNI, tree_helper.NNI_swap_subtree,tree_helper.externalSPR], "bl":[tree_helper.scale_edge, tree_helper.scale_all_edges]}
-
-#if n_chars == 2 and args.model == "F81":
-#    moves_dict["pi"].append(params_moves.mvDirichlet)
+moves_dict = {"pi": [params_moves.mvDualSlider], "rates": [params_moves.mvDualSlider], "tree":[tree_helper.rooted_NNI, tree_helper.NNI_swap_subtree,tree_helper.externalSPR], "bl":[tree_helper.scale_edge]}#, tree_helper.scale_all_edges]}
 
 n_accepts = 0.0
 samples = []
@@ -140,16 +144,20 @@ for n_iter in range(1, args.n_gen+1):
         move = np.random.choice(moves_dict[param_select])
     #print("Selected move ", param_select, move.__name__)
 
+    change_edge = None
+    
     moves_count[param_select,move.__name__] += 1
+    
     if param_select in ["pi", "rates"]:
-        new_param, hr = move(propose_state[param_select])
+        new_param, hr = move(propose_state[param_select].copy())
         propose_state[param_select] = new_param
-        #current_prior = prior_probs(param_select, state[param_select])
-        #prop_prior = prior_probs(param_select, propose_state[param_select])
-        #hr += prop_prior-current_prior
         
     elif param_select == "bl":
-        temp_edges_dict, hr = move(propose_state["tree"].copy())
+        #if move.__name__ == "scale_edge":
+        #    temp_edges_dict, hr, change_edge = move(propose_state["tree"].copy())
+        #else:
+        #    temp_edges_dict, hr = move(propose_state["tree"].copy())
+        temp_edges_dict, hr, change_edge = move(propose_state["tree"].copy())
         propose_state["tree"] = temp_edges_dict
         
     elif param_select == "tree":
@@ -160,8 +168,13 @@ for n_iter in range(1, args.n_gen+1):
     propose_state["transitionMat"] = get_prob_t(propose_state["pi"], propose_state["rates"], propose_state["tree"], propose_state["postorder"])
     
     current_ll = state["logLikehood"]
-    proposed_ll = matML_inplace(propose_state, taxa, ll_mats)
-
+    
+    #if move.__name__ == "scale_edge":
+    #    proposed_ll, proposed_llMat = matML_inplace_bl(state, taxa, ll_mats, state["logLikehoodMat"], change_edge)
+    #else:
+    #    proposed_ll, proposed_llMat = matML_inplace(propose_state, taxa, ll_mats)
+        
+    proposed_ll, proposed_llMat = matML_inplace(propose_state, taxa, ll_mats)
     ll_ratio = proposed_ll - current_ll + hr
 
     if math.log(random.random()) < ll_ratio:
@@ -173,17 +186,19 @@ for n_iter in range(1, args.n_gen+1):
             state["postorder"] = propose_state["postorder"]
         else:
             state[param_select] = propose_state[param_select]
-        state["transitionMat"] = propose_state["transitionMat"].copy()
+            
+        state["transitionMat"] = propose_state["transitionMat"]
         state["logLikehood"] = proposed_ll
+        state["logLikehoodMat"] = proposed_llMat
         accepts_count[param_select,move.__name__] += 1
-        #if n_iter % args.thin == 0:
-        #print(n_accepts, n_iter, state["logLikehood"])
-        #   print(state["tree"])
+        TL = sum(state["tree"].values())
+        print(n_iter, state["logLikehood"], proposed_ll, current_ll,TL, state["pi"], param_select, move.__name__, sep="\t", flush=True)
+
     #del propose_state
     if n_iter % args.thin == 0:
         TL = sum(state["tree"].values())
         sampled_tree = tree_helper.adjlist2newickBL(state["tree"], tree_helper.adjlist2nodes_dict(state["tree"]), state["root"], taxa)+";"
-        print(n_iter, state["logLikehood"], TL)
+        #print(n_iter, state["logLikehood"], proposed_ll, current_ll,TL, state["pi"], param_select, move.__name__, sep="\t")
         print(n_iter, state["logLikehood"], TL, sep="\t", file=params_fileWriter)
         print(n_iter, sampled_tree, state["logLikehood"], sep="\t", file=trees_fileWriter)
 

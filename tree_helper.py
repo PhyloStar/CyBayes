@@ -21,7 +21,7 @@ from scipy.stats import expon
 import math
 
 bl_exp_scale = 0.1
-scaler_alpha = 1.25
+scaler_alpha = 0.5
 
 def init_tree(taxa):
     t = rtree(taxa)
@@ -345,6 +345,7 @@ def swap_leaves(edges_list, leaves):
 def swap_top_children(edges_list, root_node, leaves):
     """Swaps two leaves within a subtree
     """
+    hastings_ratio = 0.0
     nodes_dict = adjlist2nodes_dict(edges_list)
     left, right = nodes_dict[root_node]
     left_children = nodes_dict[left]
@@ -358,7 +359,7 @@ def swap_top_children(edges_list, root_node, leaves):
     temp_nodes_dict = adjlist2nodes_dict(edges_list)
     new_postorder = postorder(temp_nodes_dict, root_node, leaves)
     
-    return edges_list, new_postorder
+    return edges_list, new_postorder, hastings_ratio
 
 def scale_all_edges(temp_edges_dict):
     n_edges = len(temp_edges_dict.keys())
@@ -371,7 +372,7 @@ def scale_all_edges(temp_edges_dict):
     for edge, length in temp_edges_dict.items():
         temp_edges_dict[edge] = length*c
         #prior_ratio += expon.logpdf(length*c, scale=bl_exp_scale) - expon.logpdf(length, scale=bl_exp_scale)
-        prior_ratio += -(length*c-length)/bl_exp_scale
+        prior_ratio += -(length*c-length)/bl_exp_scale # Used the exponential distribution directly
     
     prior_ratio += n_edges*log_c
     
@@ -394,7 +395,7 @@ def scale_edge(temp_edges_dict):
     #prior_ratio = -math.log(bl_exp_scale*rand_bl_new) + math.log(bl_exp_scale*rand_bl)
     #prior_ratio = bl_exp_scale*(rand_bl-rand_bl_new)
     
-    return temp_edges_dict, log_c+prior_ratio
+    return temp_edges_dict, log_c+prior_ratio, rand_edge
 
 def rooted_NNI(temp_edges_list, root_node, leaves):
     """Performs Nearest Neighbor Interchange on a edges list.

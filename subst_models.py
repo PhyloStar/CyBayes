@@ -24,10 +24,10 @@ def binaryptF81(pi, x, y):
     """Compute the probability matrix for binary characters
     """
     p_t = np.empty((2,2))
-    p_t[0][0] = pi[0]+pi[1]*x
-    p_t[0][1] = pi[1]*y
-    p_t[1][0] = pi[0]*y
-    p_t[1][1] = pi[1]+pi[0]*x
+    p_t[0, 0] = pi[0]+pi[1]*x
+    p_t[0, 1] = pi[1]*y
+    p_t[1, 0] = pi[0]*y
+    p_t[1, 1] = pi[1]+pi[0]*x
     return p_t
 
 def ptF81(pi,d):
