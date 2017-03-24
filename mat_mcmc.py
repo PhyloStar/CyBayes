@@ -7,7 +7,7 @@ import multiprocessing as mp
 np.random.seed(1234)
 from scipy.stats import dirichlet, expon
 import argparse, math
-from ML import matML_dot, matML_inplace
+from ML import matML_dot, matML_inplace, matML_gemm
 
 n_chars, n_taxa, alphabet, taxa, n_sites = None, None, None, None, None
 
