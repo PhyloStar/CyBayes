@@ -105,7 +105,7 @@ print("Likelihood ",init_state["logLikehood"])
 
 if args.model == "F81":
     params_list = ["pi", "bl", "tree"]
-    weights = np.array([0.5, 20, 15])
+    weights = np.array([0.05, 20, 15])
 elif args.model == "GTR":
     params_list = ["pi","rates", "tree", "bl"]
     weights = np.array([0.5, 2, 15, 20])
@@ -129,7 +129,10 @@ samples = []
 
 params_fileWriter = open(args.output_file+".params","w")
 trees_fileWriter = open(args.output_file+".trees","w")
-print("Iteration", "logLikehood", "Tree Length", sep="\t", file=params_fileWriter)
+
+const_states = "\t".join(["pi"+idx for idx in alphabet])
+
+print("Iteration", "logLikehood", "Tree Length",const_states, sep="\t", file=params_fileWriter)
 
 for n_iter in range(1, args.n_gen+1):
     propose_state = state.copy()
@@ -191,15 +194,16 @@ for n_iter in range(1, args.n_gen+1):
         state["logLikehood"] = proposed_ll
         state["logLikehoodMat"] = proposed_llMat
         accepts_count[param_select,move.__name__] += 1
-        TL = sum(state["tree"].values())
-        print(n_iter, state["logLikehood"], proposed_ll, current_ll,TL, state["pi"], param_select, move.__name__, sep="\t", flush=True)
+        #TL = sum(state["tree"].values())
+        #print(n_iter, state["logLikehood"], proposed_ll, current_ll,TL, state["pi"], param_select, move.__name__, sep="\t", flush=True)
 
     #del propose_state
     if n_iter % args.thin == 0:
         TL = sum(state["tree"].values())
+        stationary_freqs = "\t".join([str(state["pi"][idx]) for idx in range(n_chars)])
         sampled_tree = tree_helper.adjlist2newickBL(state["tree"], tree_helper.adjlist2nodes_dict(state["tree"]), state["root"], taxa)+";"
-        #print(n_iter, state["logLikehood"], proposed_ll, current_ll,TL, state["pi"], param_select, move.__name__, sep="\t")
-        print(n_iter, state["logLikehood"], TL, sep="\t", file=params_fileWriter)
+        print(n_iter, state["logLikehood"], proposed_ll, current_ll, TL, state["pi"], param_select, move.__name__, sep="\t")
+        print(n_iter, state["logLikehood"], TL, stationary_freqs, sep="\t", file=params_fileWriter, flush=True)
         print(n_iter, sampled_tree, state["logLikehood"], sep="\t", file=trees_fileWriter)
 
 params_fileWriter.close()
