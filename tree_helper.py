@@ -405,12 +405,12 @@ def rooted_NNI(temp_edges_list, root_node, leaves):
     #temp_edges_list = edges_list.copy()
     nodes_dict = adjlist2nodes_dict(temp_edges_list)
 
-    #list_edges = list(temp_edges_list.keys())
+    list_edges = list(temp_edges_list.keys())
 
-    #random.shuffle(list_edges)
-    rand_edge = None
+    random.shuffle(list_edges)
+    #rand_edge = None
     
-    for x in temp_edges_list.keys():
+    for x in list_edges:
         if x[0] not in leaves and x[1] not in leaves and x[0] != root_node:
             rand_edge = x
             break
@@ -419,8 +419,10 @@ def rooted_NNI(temp_edges_list, root_node, leaves):
 
     x, y = nodes_dict[a], nodes_dict[b]
     
-    #print(a,b,"\n")
-    #print(x,y,"\n")
+    #print(list(temp_edges_list.keys()))
+    
+    #print("Source ", a,b,"\n")
+    #print("Target ", x,y,"\n")
     
     if x[0] == b: tgt = x[1]
     else: tgt = x[0]

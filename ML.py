@@ -1,6 +1,7 @@
 from collections import defaultdict
 import numpy as np
 
+
 def matML_dot(state, taxa, ll_mats):
     LL_mat = defaultdict()
     root = state["root"]
@@ -27,6 +28,7 @@ def matML_dot(state, taxa, ll_mats):
     #print(np.dot(pi, LL_mat[root]))
     ll = np.sum(np.log(np.dot(pi, LL_mat[root])))
     return ll
+
 
 def matML_inplace(state, taxa, ll_mats):
     LL_mat = defaultdict()
@@ -56,7 +58,7 @@ def matML_inplace(state, taxa, ll_mats):
     #print(np.dot(pi, LL_mat[root]))
     #print(LL_mat[root].shape)
     ll = np.sum(np.log(np.dot(pi, LL_mat[root])))
-    return ll, LL_mat
+    return ll
 
 def matML_inplace_bl(state, taxa, ll_mats, old_LL_Mat, start_edge):
     LL_mat = defaultdict()

@@ -1,6 +1,6 @@
 from collections import defaultdict
 import subst_models, utils, params_moves, tree_helper
-import sys, random
+import sys, random, copy
 import numpy as np
 from scipy import linalg
 import multiprocessing as mp
@@ -32,6 +32,7 @@ def prior_probs(param, val):
         return dirichlet.logpdf(val, alpha=prior_pi)
     elif param == "rates":
         return dirichlet.logpdf(val, alpha=prior_er)
+
 
 def get_prob_t(pi, rates, edges_dict, edges):
     p_t = defaultdict()
@@ -94,7 +95,9 @@ print("Languages ", taxa)
 print("Alphabet ", alphabet)
 
 init_state = initialize()
-init_state["logLikehood"], init_state["logLikehoodMat"] = matML_inplace(init_state, taxa, ll_mats)
+#init_state["logLikehood"], init_state["logLikehoodMat"] = matML_inplace(init_state, taxa, ll_mats)
+
+init_state["logLikehood"] = matML_inplace(init_state, taxa, ll_mats)
 
 state = init_state.copy()
 init_tree = tree_helper.adjlist2newickBL(state["tree"], tree_helper.adjlist2nodes_dict(state["tree"]), state["root"], taxa)+";"
@@ -105,10 +108,10 @@ print("Likelihood ",init_state["logLikehood"])
 
 if args.model == "F81":
     params_list = ["pi", "bl", "tree"]
-    weights = np.array([0.05, 20, 15])
+    weights = np.array([1, 20, 15])
 elif args.model == "GTR":
     params_list = ["pi","rates", "tree", "bl"]
-    weights = np.array([0.5, 2, 15, 20])
+    weights = np.array([1, 2, 15, 20])
 elif args.model == "JC":
     params_list = ["bl", "tree"]
     weights = np.array([20, 15])
@@ -168,6 +171,12 @@ for n_iter in range(1, args.n_gen+1):
         propose_state["tree"] = temp_edges_dict
         propose_state["postorder"] = prop_post_order
     
+    #if move.__name__ == "rooted_NNI":
+    #    print("Proposed post-order ", prop_post_order, sep="\n")
+    #    print("current post-order ", state["postorder"], sep="\n")
+    #    propose_state["transitionMat"] = copy.deepcopy(state["transitionMat"])    
+    #else:
+    
     propose_state["transitionMat"] = get_prob_t(propose_state["pi"], propose_state["rates"], propose_state["tree"], propose_state["postorder"])
     
     current_ll = state["logLikehood"]
@@ -177,7 +186,9 @@ for n_iter in range(1, args.n_gen+1):
     #else:
     #    proposed_ll, proposed_llMat = matML_inplace(propose_state, taxa, ll_mats)
         
-    proposed_ll, proposed_llMat = matML_inplace(propose_state, taxa, ll_mats)
+    #proposed_ll, proposed_llMat = matML_inplace(propose_state, taxa, ll_mats)
+    proposed_ll = matML_inplace(propose_state, taxa, ll_mats)
+        
     ll_ratio = proposed_ll - current_ll + hr
 
     if math.log(random.random()) < ll_ratio:
@@ -192,7 +203,7 @@ for n_iter in range(1, args.n_gen+1):
             
         state["transitionMat"] = propose_state["transitionMat"]
         state["logLikehood"] = proposed_ll
-        state["logLikehoodMat"] = proposed_llMat
+        #state["logLikehoodMat"] = proposed_llMat
         accepts_count[param_select,move.__name__] += 1
         #TL = sum(state["tree"].values())
         #print(n_iter, state["logLikehood"], proposed_ll, current_ll,TL, state["pi"], param_select, move.__name__, sep="\t", flush=True)
