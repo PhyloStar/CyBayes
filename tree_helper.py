@@ -400,15 +400,14 @@ def scale_edge(temp_edges_dict):
 def rooted_NNI(temp_edges_list, root_node, leaves):
     """Performs Nearest Neighbor Interchange on a edges list.
     """
-    #print("Selected NNI")
+
     hastings_ratio = 0.0
-    #temp_edges_list = edges_list.copy()
+
     nodes_dict = adjlist2nodes_dict(temp_edges_list)
 
     list_edges = list(temp_edges_list.keys())
 
     random.shuffle(list_edges)
-    #rand_edge = None
     
     for x in list_edges:
         if x[0] not in leaves and x[1] not in leaves and x[0] != root_node:
@@ -419,17 +418,11 @@ def rooted_NNI(temp_edges_list, root_node, leaves):
 
     x, y = nodes_dict[a], nodes_dict[b]
     
-    #print(list(temp_edges_list.keys()))
-    
-    #print("Source ", a,b,"\n")
-    #print("Target ", x,y,"\n")
     
     if x[0] == b: tgt = x[1]
     else: tgt = x[0]
 
-    #print("Target ",tgt)
-    #random.shuffle(y)
-    
+  
     src_bl, tgt_bl = temp_edges_list[a,tgt], temp_edges_list[b,y[0]]
     del temp_edges_list[a,tgt], temp_edges_list[b,y[0]]
     temp_edges_list[a,y[0]] = tgt_bl

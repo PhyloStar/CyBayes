@@ -9,7 +9,7 @@ from scipy.stats import dirichlet, expon
 import argparse, math
 from ML import matML_dot, matML_inplace, matML_inplace_bl
 
-n_chars, n_taxa, alphabet, taxa, n_sites = None, None, None, None, None
+n_chars, n_taxa, alphabet, taxa, n_sites, model_normalizing_beta = None, None, None, None, None, 1.0
 
 gemv = linalg.get_blas_funcs("gemv")
 
@@ -34,16 +34,13 @@ def prior_probs(param, val):
         return dirichlet.logpdf(val, alpha=prior_er)
 
 def get_copy_transition_mat(pi, rates, edges_dict, edges, transition_mat, change_edge):
-
+    if args.model == "F81":
+        model_normalizing_beta = 1/(1-np.dot(pi, pi))
+    elif args.model == "JC":
+        model_normalizing_beta = n_chars/(n_chars-1)
+        
     new_transition_mat = defaultdict()
     
-    if args.model == "F81":
-        beta = 1/(1-np.dot(pi, pi))
-    elif args.model == "JC":
-        beta = n_chars/(n_chars-1)
-
-    n_states = pi.shape[0]
-
     for Edge in edges[::-1]:
         parent, child = Edge
         if Edge != change_edge:
@@ -54,11 +51,11 @@ def get_copy_transition_mat(pi, rates, edges_dict, edges, transition_mat, change
                 if args.data_type == "multi":
                     new_transition_mat[parent,child] = subst_models.ptF81(pi, d)
                 elif args.data_type == "bin":
-                    x = math.exp(-beta*d)
+                    x = math.exp(-model_normalizing_beta*d)
                     y = 1.0-x
                     new_transition_mat[parent,child] = subst_models.binaryptF81(pi, x, y)
             elif args.model == "JC":
-                x = math.exp(-beta*d)
+                x = math.exp(-model_normalizing_beta*d)
                 y = (1.0-x)/n_chars        
                 #p_t[parent,child] =  subst_models.fastJC(n_chars, x, y)
                 new_transition_mat[parent,child] =  subst_models.ptJC(n_chars, x, y)
@@ -70,23 +67,23 @@ def get_copy_transition_mat(pi, rates, edges_dict, edges, transition_mat, change
 
 def get_prob_t(pi, rates, edges_dict, edges):
     p_t = defaultdict()
-    if args.model == "F81":
-        beta = 1/(1-np.dot(pi, pi))
-    elif args.model == "JC":
-        beta = n_chars/(n_chars-1)
 
-    n_states = pi.shape[0]
+    if args.model == "F81":
+        model_normalizing_beta = 1/(1-np.dot(pi, pi))
+    elif args.model == "JC":
+        model_normalizing_beta = n_chars/(n_chars-1)
+        
     for parent, child in edges[::-1]:
         d = edges_dict[parent,child]
         if args.model == "F81":
             if args.data_type == "multi":
                 p_t[parent,child] = subst_models.ptF81(pi, d)
             elif args.data_type == "bin":
-                x = math.exp(-beta*d)
+                x = math.exp(-model_normalizing_beta*d)
                 y = 1.0-x
                 p_t[parent,child] = subst_models.binaryptF81(pi, x, y)
         elif args.model == "JC":
-            x = math.exp(-beta*d)
+            x = math.exp(-model_normalizing_beta*d)
             y = (1.0-x)/n_chars        
             #p_t[parent,child] =  subst_models.fastJC(n_chars, x, y)
             p_t[parent,child] =  subst_models.ptJC(n_chars, x, y)
@@ -139,6 +136,9 @@ print("Initial Random Tree ")
 print(init_tree)
 print("Likelihood ",init_state["logLikehood"])
 
+
+if args.model == "JC":
+    model_normalizing_beta = n_chars/(n_chars-1)
 
 if args.model == "F81":
     params_list = ["pi", "bl", "tree"]
