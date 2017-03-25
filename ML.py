@@ -58,15 +58,15 @@ def matML_inplace(state, taxa, ll_mats):
     #print(np.dot(pi, LL_mat[root]))
     #print(LL_mat[root].shape)
     ll = np.sum(np.log(np.dot(pi, LL_mat[root])))
-    return ll
+    return ll, LL_mat
 
-def matML_inplace_bl(state, taxa, ll_mats, old_LL_Mat, start_edge):
+def matML_inplace_bl(state, taxa, ll_mats, cache_LL_Mats, start_edge):
     LL_mat = defaultdict()
     root = state["root"]
     p_t = state["transitionMat"]
     pi = state["pi"]
     edges = state["postorder"]
-    
+
     flag = False
     
     for edge in edges[::-1]:
@@ -76,7 +76,7 @@ def matML_inplace_bl(state, taxa, ll_mats, old_LL_Mat, start_edge):
             flag = True
 
         if not flag:
-            LL_mat[parent] = old_LL_Mat[parent].copy()
+            LL_mat[parent] = cache_LL_Mats[parent]#.copy()
             continue
 
         if child in taxa:

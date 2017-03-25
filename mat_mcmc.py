@@ -126,15 +126,17 @@ print("Languages ", taxa)
 print("Alphabet ", alphabet)
 
 init_state = initialize()
-#init_state["logLikehood"], init_state["logLikehoodMat"] = matML_inplace(init_state, taxa, ll_mats)
+cache_LL_Mat = None
 
-init_state["logLikehood"] = matML_inplace(init_state, taxa, ll_mats)
+init_state["logLikehood"], cache_LL_Mat = matML_inplace(init_state, taxa, ll_mats)
+
+#init_state["logLikehood"] = matML_inplace(init_state, taxa, ll_mats)
 
 state = init_state.copy()
 init_tree = tree_helper.adjlist2newickBL(state["tree"], tree_helper.adjlist2nodes_dict(state["tree"]), state["root"], taxa)+";"
 print("Initial Random Tree ")
 print(init_tree)
-print("Likelihood ",init_state["logLikehood"])
+print("Initial Likelihood ",init_state["logLikehood"])
 
 
 if args.model == "JC":
@@ -142,13 +144,13 @@ if args.model == "JC":
 
 if args.model == "F81":
     params_list = ["pi", "bl", "tree"]
-    weights = np.array([1, 20, 15])
+    weights = np.array([1, 20, 10])
 elif args.model == "GTR":
     params_list = ["pi","rates", "tree", "bl"]
-    weights = np.array([1, 2, 15, 20])
+    weights = np.array([1, 2, 5, 20])
 elif args.model == "JC":
     params_list = ["bl", "tree"]
-    weights = np.array([20, 15])
+    weights = np.array([20, 5])
 
 tree_move_weights = np.array([5,0,5])
 bl_move_weights = np.array([10])
@@ -208,13 +210,12 @@ for n_iter in range(1, args.n_gen+1):
     
     current_ll = state["logLikehood"]
     
-    #if move.__name__ == "scale_edge":
-    #    proposed_ll, proposed_llMat = matML_inplace_bl(state, taxa, ll_mats, state["logLikehoodMat"], change_edge)
-    #else:
-    #    proposed_ll, proposed_llMat = matML_inplace(propose_state, taxa, ll_mats)
-        
-    #proposed_ll, proposed_llMat = matML_inplace(propose_state, taxa, ll_mats)
-    proposed_ll = matML_inplace(propose_state, taxa, ll_mats)
+    if move.__name__ == "scale_edge":
+        proposed_ll, proposed_llMat = matML_inplace_bl(propose_state, taxa, ll_mats, cache_LL_Mat, change_edge)
+    else:
+        proposed_ll, proposed_llMat = matML_inplace(propose_state, taxa, ll_mats)
+    
+    #proposed_ll = matML_inplace(propose_state, taxa, ll_mats)
         
     ll_ratio = proposed_ll - current_ll + hr
 
@@ -230,10 +231,10 @@ for n_iter in range(1, args.n_gen+1):
             
         state["transitionMat"] = propose_state["transitionMat"]
         state["logLikehood"] = proposed_ll
-        #state["logLikehoodMat"] = proposed_llMat
+        cache_LL_Mat = proposed_llMat
         accepts_count[param_select,move.__name__] += 1
         #TL = sum(state["tree"].values())
-        #print(n_iter, state["logLikehood"], proposed_ll, current_ll,TL, state["pi"], param_select, move.__name__, sep="\t", flush=True)
+        #print(n_iter, state["logLikehood"], proposed_ll, current_ll,TL, param_select, move.__name__, sep="\t", flush=True)
 
     #del propose_state
     if n_iter % args.thin == 0:

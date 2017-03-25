@@ -405,7 +405,7 @@ def rooted_NNI(temp_edges_list, root_node, leaves):
 
     nodes_dict = adjlist2nodes_dict(temp_edges_list)
 
-    list_edges = list(temp_edges_list.keys())
+    list_edges = list(temp_edges_list)
 
     random.shuffle(list_edges)
     
