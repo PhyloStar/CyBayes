@@ -33,6 +33,40 @@ def prior_probs(param, val):
     elif param == "rates":
         return dirichlet.logpdf(val, alpha=prior_er)
 
+def get_copy_transition_mat(pi, rates, edges_dict, edges, transition_mat, change_edge):
+
+    new_transition_mat = defaultdict()
+    
+    if args.model == "F81":
+        beta = 1/(1-np.dot(pi, pi))
+    elif args.model == "JC":
+        beta = n_chars/(n_chars-1)
+
+    n_states = pi.shape[0]
+
+    for Edge in edges[::-1]:
+        parent, child = Edge
+        if Edge != change_edge:
+            new_transition_mat[parent, child] = transition_mat[parent, child].copy()        
+        else:
+            d = edges_dict[parent,child]
+            if args.model == "F81":
+                if args.data_type == "multi":
+                    new_transition_mat[parent,child] = subst_models.ptF81(pi, d)
+                elif args.data_type == "bin":
+                    x = math.exp(-beta*d)
+                    y = 1.0-x
+                    new_transition_mat[parent,child] = subst_models.binaryptF81(pi, x, y)
+            elif args.model == "JC":
+                x = math.exp(-beta*d)
+                y = (1.0-x)/n_chars        
+                #p_t[parent,child] =  subst_models.fastJC(n_chars, x, y)
+                new_transition_mat[parent,child] =  subst_models.ptJC(n_chars, x, y)
+            elif args.model == "GTR":
+                Q = subst_models.fnGTR(rates, pi)
+                new_transition_mat[parent,child] = linalg.expm2(Q*edges_dict[parent,child])
+    return new_transition_mat
+
 
 def get_prob_t(pi, rates, edges_dict, edges):
     p_t = defaultdict()
@@ -159,10 +193,6 @@ for n_iter in range(1, args.n_gen+1):
         propose_state[param_select] = new_param
         
     elif param_select == "bl":
-        #if move.__name__ == "scale_edge":
-        #    temp_edges_dict, hr, change_edge = move(propose_state["tree"].copy())
-        #else:
-        #    temp_edges_dict, hr = move(propose_state["tree"].copy())
         temp_edges_dict, hr, change_edge = move(propose_state["tree"].copy())
         propose_state["tree"] = temp_edges_dict
         
@@ -171,13 +201,10 @@ for n_iter in range(1, args.n_gen+1):
         propose_state["tree"] = temp_edges_dict
         propose_state["postorder"] = prop_post_order
     
-    #if move.__name__ == "rooted_NNI":
-    #    print("Proposed post-order ", prop_post_order, sep="\n")
-    #    print("current post-order ", state["postorder"], sep="\n")
-    #    propose_state["transitionMat"] = copy.deepcopy(state["transitionMat"])    
-    #else:
-    
-    propose_state["transitionMat"] = get_prob_t(propose_state["pi"], propose_state["rates"], propose_state["tree"], propose_state["postorder"])
+    if move.__name__ == "scale_edge":    
+        propose_state["transitionMat"] = get_copy_transition_mat(propose_state["pi"], propose_state["rates"], propose_state["tree"], propose_state["postorder"], state["transitionMat"], change_edge)
+    else:
+        propose_state["transitionMat"] = get_prob_t(propose_state["pi"], propose_state["rates"], propose_state["tree"], propose_state["postorder"])
     
     current_ll = state["logLikehood"]
     
