@@ -36,7 +36,6 @@ def matML_inplace(state, taxa, ll_mats):
     p_t = state["transitionMat"]
     pi = state["pi"]
     edges = state["postorder"]
-    
 
     for parent, child in edges[::-1]:
         if child in taxa:
@@ -60,37 +59,43 @@ def matML_inplace(state, taxa, ll_mats):
     ll = np.sum(np.log(np.dot(pi, LL_mat[root])))
     return ll, LL_mat
 
-def matML_inplace_bl(state, taxa, ll_mats, cache_LL_Mats, start_edge):
+def matML_inplace_bl(state, taxa, ll_mats, cache_LL_Mats, nodes_recompute):
     LL_mat = defaultdict()
     root = state["root"]
     p_t = state["transitionMat"]
     pi = state["pi"]
     edges = state["postorder"]
 
-    flag = False
-    
+    #flag = False
+
     for edge in edges[::-1]:
         parent, child = edge
-
-        if start_edge == edge:
-            flag = True
-
-        if not flag:
-            LL_mat[parent] = cache_LL_Mats[parent]#.copy()
-            continue
-
-        if child in taxa:
-            if parent not in LL_mat:
-                LL_mat[parent] = p_t[parent,child].dot(ll_mats[child])
-
+        
+        if parent in nodes_recompute:
+            if child in taxa:
+                if parent not in LL_mat:
+                    LL_mat[parent] = p_t[parent,child].dot(ll_mats[child])
+                else:
+                    LL_mat[parent] *= p_t[parent,child].dot(ll_mats[child])
             else:
-                LL_mat[parent] *= p_t[parent,child].dot(ll_mats[child])
+                if parent not in LL_mat:
+                    LL_mat[parent] = p_t[parent,child].dot(LL_mat[child])
+                else:
+                    LL_mat[parent] *= p_t[parent,child].dot(LL_mat[child])
         else:
-            if parent not in LL_mat:
-                LL_mat[parent] = p_t[parent,child].dot(LL_mat[child])
+            LL_mat[parent] = cache_LL_Mats[parent]#.copy()
+        
+        #if start_edge == edge:
+        #    flag = True
 
-            else:
-                LL_mat[parent] *= p_t[parent,child].dot(LL_mat[child])
+        #if not flag:
+        #    LL_mat[parent] = cache_LL_Mats[parent].copy()
+        #    continue
+
+        #if child in taxa:
+        #    if parent not in LL_mat:
+        #        LL_mat[parent] = p_t[parent,child].dot(ll_mats[child])
+        #else:
 
     ll = np.sum(np.log(np.dot(pi, LL_mat[root])))
     return ll, LL_mat

@@ -9,23 +9,23 @@ from scipy.stats import dirichlet
 import argparse, math
 from ML import matML_dot, matML_inplace, matML_inplace_bl
 
-n_chars, n_taxa, alphabet, taxa, n_sites, model_normalizing_beta = None, None, None, None, None, 1.0
+n_chars, n_taxa, alphabet, taxa, n_sites, model_normalizing_beta = None, None, None, None, None, None
 
 #gemv = linalg.get_blas_funcs("gemv")
 
-def site2mat(site):
-    ll_mat = defaultdict(lambda: 1)
-    zero_vec = np.zeros(n_chars)
-    
-    for k, v in site.items():
-        if v in ["?", "-"]:
-            x = np.ones(n_chars)
-        else:
-            x = np.zeros(n_chars)
-            idx = alphabet.index(v)
-            x[idx] = 1.0
-        ll_mat[k] = x
-    return ll_mat
+#def site2mat(site):
+#    ll_mat = defaultdict(lambda: 1)
+#    zero_vec = np.zeros(n_chars)
+#    
+#    for k, v in site.items():
+#        if v in ["?", "-"]:
+#            x = np.ones(n_chars)
+#        else:
+#            x = np.zeros(n_chars)
+#            idx = alphabet.index(v)
+#            x[idx] = 1.0
+#        ll_mat[k] = x
+#    return ll_mat
 
 def prior_probs(param, val):
     if param == "pi":
@@ -44,7 +44,7 @@ def get_copy_transition_mat(pi, rates, edges_dict, transition_mat, change_edge):
     for Edge in edges_dict:
         parent, child = Edge
         if Edge != change_edge:
-            new_transition_mat[parent, child] = transition_mat[parent, child].copy()        
+            new_transition_mat[parent, child] = transition_mat[parent, child].copy()
         else:
             d = edges_dict[parent,child]
             if args.model == "F81":
@@ -63,7 +63,6 @@ def get_copy_transition_mat(pi, rates, edges_dict, transition_mat, change_edge):
                 Q = subst_models.fnGTR(rates, pi)
                 new_transition_mat[parent,child] = linalg.expm2(Q*edges_dict[parent,child])
     return new_transition_mat
-
 
 def get_prob_t(pi, rates, edges_dict):
     p_t = defaultdict()
@@ -126,18 +125,17 @@ print("Languages ", taxa)
 print("Alphabet ", alphabet)
 
 init_state = initialize()
-cache_LL_Mat = None
+cache_LL_Mat, cache_paths_dict = None, None
 
 init_state["logLikehood"], cache_LL_Mat = matML_inplace(init_state, taxa, ll_mats)
 
-#init_state["logLikehood"] = matML_inplace(init_state, taxa, ll_mats)
-
 state = init_state.copy()
 init_tree = tree_helper.adjlist2newickBL(state["tree"], tree_helper.adjlist2nodes_dict(state["tree"]), state["root"], taxa)+";"
+cache_paths_dict = tree_helper.adjlist2reverse_nodes_dict(state["tree"])
+
 print("Initial Random Tree ")
 print(init_tree)
 print("Initial Likelihood ",init_state["logLikehood"])
-
 
 if args.model == "JC":
     model_normalizing_beta = n_chars/(n_chars-1)
@@ -152,7 +150,7 @@ elif args.model == "JC":
     params_list = ["bl", "tree"]
     weights = np.array([20, 5])
 
-tree_move_weights = np.array([5,0,5])
+tree_move_weights = np.array([5,1,5])
 bl_move_weights = np.array([10])
 
 weights = weights/sum(weights)
@@ -161,23 +159,23 @@ bl_move_weights = bl_move_weights/sum(bl_move_weights)
 
 moves_count = defaultdict(float)
 accepts_count = defaultdict(float)
-moves_dict = {"pi": [params_moves.mvDualSlider], "rates": [params_moves.mvDualSlider], "tree":[tree_helper.rooted_NNI, tree_helper.NNI_swap_subtree,tree_helper.externalSPR], "bl":[tree_helper.scale_edge]}#, tree_helper.scale_all_edges]}
+moves_dict = {"pi": [params_moves.mvDualSlider], "rates": [params_moves.mvDualSlider], "tree":[tree_helper.rooted_NNI, tree_helper.NNI_swap_subtree, tree_helper.externalSPR], "bl":[tree_helper.scale_edge]}
 
 n_accepts = 0.0
-samples = []
 
 params_fileWriter = open(args.output_file+".params","w")
 trees_fileWriter = open(args.output_file+".trees","w")
-
 const_states = "\t".join(["pi"+idx for idx in alphabet])
 
 print("Iteration", "logLikehood", "Tree Length",const_states, sep="\t", file=params_fileWriter)
 
 for n_iter in range(1, args.n_gen+1):
     propose_state = state.copy()
-    current_ll, proposed_ll, ll_ratio, hr = 0.0, 0.0, 0.0, 0.0
+    
+    current_ll, proposed_ll, ll_ratio, hr, change_edge = 0.0, 0.0, 0.0, 0.0, None
     
     param_select = np.random.choice(params_list, p=weights)
+    
     if param_select == "tree":
         move = np.random.choice(moves_dict[param_select], p=tree_move_weights)
     elif param_select == "bl":
@@ -185,58 +183,49 @@ for n_iter in range(1, args.n_gen+1):
     else:
         move = np.random.choice(moves_dict[param_select])
     #print("Selected move ", param_select, move.__name__)
-
-    change_edge = None
     
     moves_count[param_select,move.__name__] += 1
     
     if param_select in ["pi", "rates"]:
-        new_param, hr = move(propose_state[param_select].copy())
+        new_param, hr = move(state[param_select].copy())
         propose_state[param_select] = new_param
-        
     elif param_select == "bl":
-        temp_edges_dict, hr, change_edge = move(propose_state["tree"].copy())
-        propose_state["tree"] = temp_edges_dict
-        
+        prop_edges_dict, hr, change_edge = move(state["tree"].copy())
+        propose_state["tree"] = prop_edges_dict
     elif param_select == "tree":
-        temp_edges_dict, prop_post_order, hr, success_flag = move(propose_state[param_select].copy(), propose_state["root"], taxa)
-        propose_state["tree"] = temp_edges_dict
+        prop_edges_dict, prop_post_order, hr = move(state[param_select].copy(), state["root"], taxa)
+        propose_state["tree"] = prop_edges_dict
         propose_state["postorder"] = prop_post_order
-    
-    if move.__name__ == "scale_edge":    
+
+    if move.__name__ == "scale_edge":
         propose_state["transitionMat"] = get_copy_transition_mat(propose_state["pi"], propose_state["rates"], propose_state["tree"], state["transitionMat"], change_edge)
-    elif param_select == "tree" and not success_flag:
-        continue
+        nodes_recompute = tree_helper.get_path2root(cache_paths_dict, change_edge[1], state["root"])
+        proposed_ll, proposed_llMat = matML_inplace_bl(propose_state, taxa, ll_mats, cache_LL_Mat, nodes_recompute)
     else:
         propose_state["transitionMat"] = get_prob_t(propose_state["pi"], propose_state["rates"], propose_state["tree"])
-    
-    current_ll = state["logLikehood"]
-    
-    if move.__name__ == "scale_edge":
-        proposed_ll, proposed_llMat = matML_inplace_bl(propose_state, taxa, ll_mats, cache_LL_Mat, change_edge)
-    else:
         proposed_ll, proposed_llMat = matML_inplace(propose_state, taxa, ll_mats)
-    
-    #proposed_ll = matML_inplace(propose_state, taxa, ll_mats)
-        
-    ll_ratio = proposed_ll - current_ll + hr
 
+    current_ll = state["logLikehood"]
+    ll_ratio = proposed_ll - current_ll + hr
+    
     if math.log(random.random()) < ll_ratio:
         n_accepts += 1
         if param_select == "bl":
             state["tree"] = propose_state["tree"]
         elif param_select == "tree":
             state[param_select] = propose_state[param_select]
-            state["postorder"] = propose_state["postorder"]
+            state["postorder"] = prop_post_order
+            cache_paths_dict = tree_helper.adjlist2reverse_nodes_dict(state[param_select])
+            cache_LL_Mat = proposed_llMat
         else:
             state[param_select] = propose_state[param_select]
             
         state["transitionMat"] = propose_state["transitionMat"]
         state["logLikehood"] = proposed_ll
-        cache_LL_Mat = proposed_llMat
+        
         accepts_count[param_select,move.__name__] += 1
-        #TL = sum(state["tree"].values())
-        #print(n_iter, state["logLikehood"], proposed_ll, current_ll,TL, param_select, move.__name__, sep="\t", flush=True)
+        TL = sum(state["tree"].values())
+        print(n_iter, state["logLikehood"], proposed_ll, current_ll,TL, param_select, move.__name__, sep="\t", flush=True)
 
     #del propose_state
     if n_iter % args.thin == 0:
