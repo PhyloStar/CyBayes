@@ -68,8 +68,7 @@ def matML_inplace_bl(state, taxa, ll_mats, cache_LL_Mats, nodes_recompute):
 
     #flag = False
 
-    for edge in edges[::-1]:
-        parent, child = edge
+    for parent, child in edges[::-1]:
         
         if parent in nodes_recompute:
             if child in taxa:
@@ -83,7 +82,7 @@ def matML_inplace_bl(state, taxa, ll_mats, cache_LL_Mats, nodes_recompute):
                 else:
                     LL_mat[parent] *= p_t[parent,child].dot(LL_mat[child])
         else:
-            LL_mat[parent] = cache_LL_Mats[parent]#.copy()
+            LL_mat[parent] = cache_LL_Mats[parent].copy()
         
         #if start_edge == edge:
         #    flag = True

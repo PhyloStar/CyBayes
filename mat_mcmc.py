@@ -150,7 +150,7 @@ elif args.model == "JC":
     params_list = ["bl", "tree"]
     weights = np.array([20, 5])
 
-tree_move_weights = np.array([5,1,5])
+tree_move_weights = np.array([5,0,5])
 bl_move_weights = np.array([10])
 
 weights = weights/sum(weights)
@@ -224,8 +224,8 @@ for n_iter in range(1, args.n_gen+1):
         state["logLikehood"] = proposed_ll
         
         accepts_count[param_select,move.__name__] += 1
-        TL = sum(state["tree"].values())
-        print(n_iter, state["logLikehood"], proposed_ll, current_ll,TL, param_select, move.__name__, sep="\t", flush=True)
+        #TL = sum(state["tree"].values())
+        #print(n_iter, state["logLikehood"], proposed_ll, current_ll,TL, param_select, move.__name__, sep="\t", flush=True)
 
     #del propose_state
     if n_iter % args.thin == 0:
