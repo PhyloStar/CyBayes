@@ -64,6 +64,40 @@ def get_copy_transition_mat(pi, rates, edges_dict, transition_mat, change_edge):
                 new_transition_mat[parent,child] = linalg.expm2(Q*edges_dict[parent,child])
     return new_transition_mat
 
+def get_edge_transition_mat(pi, rates, d, transition_mat, change_edge):
+    """Calcualtes new matrix and remembers the old matrix for a branch.
+    """
+    if args.model == "F81":
+        model_normalizing_beta = 1/(1-np.dot(pi, pi))
+    elif args.model == "JC":
+        model_normalizing_beta = n_chars/(n_chars-1)
+        
+#    new_transition_mat = defaultdict()
+#    for Edge in edges_dict:
+#        parent, child = Edge
+#        if Edge != change_edge:
+#            new_transition_mat[parent, child] = transition_mat[parent, child].copy()
+#        else:
+    #old_matrix = transition_mat[change_edge]
+    parent,child = change_edge
+    if args.model == "F81":
+        if args.data_type == "multi":
+            transition_mat[parent,child] = subst_models.ptF81(pi, d)
+        elif args.data_type == "bin":
+            x = math.exp(-model_normalizing_beta*d)
+            y = 1.0-x
+            transition_mat[parent,child] = subst_models.binaryptF81(pi, x, y)
+    elif args.model == "JC":
+        x = math.exp(-model_normalizing_beta*d)
+        y = (1.0-x)/n_chars        
+        #p_t[parent,child] =  subst_models.fastJC(n_chars, x, y)
+        transition_mat[parent,child] =  subst_models.ptJC(n_chars, x, y)
+    elif args.model == "GTR":
+        Q = subst_models.fnGTR(rates, pi)
+        transition_mat[parent,child] = linalg.expm2(Q*d)
+    return transition_mat
+
+
 def get_prob_t(pi, rates, edges_dict):
     p_t = defaultdict()
 
@@ -198,7 +232,9 @@ for n_iter in range(1, args.n_gen+1):
         propose_state["postorder"] = prop_post_order
 
     if move.__name__ == "scale_edge":
-        propose_state["transitionMat"] = get_copy_transition_mat(propose_state["pi"], propose_state["rates"], propose_state["tree"], state["transitionMat"], change_edge)
+        #propose_state["transitionMat"] = get_copy_transition_mat(propose_state["pi"], propose_state["rates"], propose_state["tree"], state["transitionMat"], change_edge)
+        old_edge_p_t = state["transitionMat"][change_edge]
+        propose_state["transitionMat"] = get_edge_transition_mat(propose_state["pi"], propose_state["rates"], propose_state["tree"][change_edge], state["transitionMat"], change_edge)
         nodes_recompute = tree_helper.get_path2root(cache_paths_dict, change_edge[1], state["root"])
         proposed_ll, proposed_llMat = matML_inplace_bl(propose_state, taxa, ll_mats, cache_LL_Mat, nodes_recompute)
     else:
@@ -224,6 +260,9 @@ for n_iter in range(1, args.n_gen+1):
         state["logLikehood"] = proposed_ll
         
         accepts_count[param_select,move.__name__] += 1
+    else:
+        state["transitionMat"][change_edge] = old_edge_p_t
+    
         #TL = sum(state["tree"].values())
         #print(n_iter, state["logLikehood"], proposed_ll, current_ll,TL, param_select, move.__name__, sep="\t", flush=True)
 

@@ -59,7 +59,7 @@ def matML_inplace(state, taxa, ll_mats):
     ll = np.sum(np.log(np.dot(pi, LL_mat[root])))
     return ll, LL_mat
 
-def matML_inplace_bl(state, taxa, ll_mats, cache_LL_Mats, nodes_recompute):
+def matML_inplace_bl(state, taxa, ll_mats, cache_LL_Mat, nodes_recompute):
     LL_mat = defaultdict()
     root = state["root"]
     p_t = state["transitionMat"]
@@ -82,7 +82,7 @@ def matML_inplace_bl(state, taxa, ll_mats, cache_LL_Mats, nodes_recompute):
                 else:
                     LL_mat[parent] *= p_t[parent,child].dot(LL_mat[child])
         else:
-            LL_mat[parent] = cache_LL_Mats[parent].copy()
+            LL_mat[parent] = cache_LL_Mat[parent]#.copy()
         
         #if start_edge == edge:
         #    flag = True
