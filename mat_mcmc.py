@@ -3,15 +3,15 @@ import subst_models, utils, params_moves, tree_helper
 import sys, random, copy
 import numpy as np
 from scipy import linalg
-import multiprocessing as mp
+
 np.random.seed(1234)
-from scipy.stats import dirichlet, expon
+from scipy.stats import dirichlet
 import argparse, math
 from ML import matML_dot, matML_inplace, matML_inplace_bl
 
 n_chars, n_taxa, alphabet, taxa, n_sites, model_normalizing_beta = None, None, None, None, None, 1.0
 
-gemv = linalg.get_blas_funcs("gemv")
+#gemv = linalg.get_blas_funcs("gemv")
 
 def site2mat(site):
     ll_mat = defaultdict(lambda: 1)
@@ -33,7 +33,7 @@ def prior_probs(param, val):
     elif param == "rates":
         return dirichlet.logpdf(val, alpha=prior_er)
 
-def get_copy_transition_mat(pi, rates, edges_dict, edges, transition_mat, change_edge):
+def get_copy_transition_mat(pi, rates, edges_dict, transition_mat, change_edge):
     if args.model == "F81":
         model_normalizing_beta = 1/(1-np.dot(pi, pi))
     elif args.model == "JC":
@@ -41,7 +41,7 @@ def get_copy_transition_mat(pi, rates, edges_dict, edges, transition_mat, change
         
     new_transition_mat = defaultdict()
     
-    for Edge in edges[::-1]:
+    for Edge in edges_dict:
         parent, child = Edge
         if Edge != change_edge:
             new_transition_mat[parent, child] = transition_mat[parent, child].copy()        
@@ -65,7 +65,7 @@ def get_copy_transition_mat(pi, rates, edges_dict, edges, transition_mat, change
     return new_transition_mat
 
 
-def get_prob_t(pi, rates, edges_dict, edges):
+def get_prob_t(pi, rates, edges_dict):
     p_t = defaultdict()
 
     if args.model == "F81":
@@ -73,7 +73,7 @@ def get_prob_t(pi, rates, edges_dict, edges):
     elif args.model == "JC":
         model_normalizing_beta = n_chars/(n_chars-1)
         
-    for parent, child in edges[::-1]:
+    for parent, child in edges_dict:
         d = edges_dict[parent,child]
         if args.model == "F81":
             if args.data_type == "multi":
@@ -101,7 +101,7 @@ def initialize():
     nodes_dict = tree_helper.adjlist2nodes_dict(state["tree"])
     edges_ordered_list = tree_helper.postorder(nodes_dict, state["root"], taxa)
     state["postorder"] = edges_ordered_list
-    state["transitionMat"] = get_prob_t(state["pi"], state["rates"], state["tree"], state["postorder"])
+    state["transitionMat"] = get_prob_t(state["pi"], state["rates"], state["tree"])
     return state
 
 parser = argparse.ArgumentParser()
@@ -144,7 +144,7 @@ if args.model == "JC":
 
 if args.model == "F81":
     params_list = ["pi", "bl", "tree"]
-    weights = np.array([1, 20, 10])
+    weights = np.array([1, 20, 5])
 elif args.model == "GTR":
     params_list = ["pi","rates", "tree", "bl"]
     weights = np.array([1, 2, 5, 20])
@@ -199,14 +199,16 @@ for n_iter in range(1, args.n_gen+1):
         propose_state["tree"] = temp_edges_dict
         
     elif param_select == "tree":
-        temp_edges_dict, prop_post_order, hr = move(propose_state[param_select].copy(), propose_state["root"], taxa)
+        temp_edges_dict, prop_post_order, hr, success_flag = move(propose_state[param_select].copy(), propose_state["root"], taxa)
         propose_state["tree"] = temp_edges_dict
         propose_state["postorder"] = prop_post_order
     
     if move.__name__ == "scale_edge":    
-        propose_state["transitionMat"] = get_copy_transition_mat(propose_state["pi"], propose_state["rates"], propose_state["tree"], propose_state["postorder"], state["transitionMat"], change_edge)
+        propose_state["transitionMat"] = get_copy_transition_mat(propose_state["pi"], propose_state["rates"], propose_state["tree"], state["transitionMat"], change_edge)
+    elif param_select == "tree" and not success_flag:
+        continue
     else:
-        propose_state["transitionMat"] = get_prob_t(propose_state["pi"], propose_state["rates"], propose_state["tree"], propose_state["postorder"])
+        propose_state["transitionMat"] = get_prob_t(propose_state["pi"], propose_state["rates"], propose_state["tree"])
     
     current_ll = state["logLikehood"]
     

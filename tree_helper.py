@@ -147,15 +147,15 @@ def postorder(nodes_dict, node, leaves):
     #print(node, nodes_dict[node])
     x, y = nodes_dict[node]
     #print(node, x, y)
-    edges_ordered_list += [(node,x)]
-    edges_ordered_list += [(node,y)]
+    edges_ordered_list.append((node,x))
+    edges_ordered_list.append((node,y))
     
     if x not in leaves:
-        z = postorder(nodes_dict, x, leaves)
-        edges_ordered_list += z
+        #z = postorder(nodes_dict, x, leaves)
+        edges_ordered_list += postorder(nodes_dict, x, leaves)
     if y not in leaves:
-        w = postorder(nodes_dict, y, leaves)
-        edges_ordered_list += w
+        #w = postorder(nodes_dict, y, leaves)
+        edges_ordered_list += postorder(nodes_dict, y, leaves)
     
     return edges_ordered_list
 
@@ -232,10 +232,13 @@ def adjlist2reverse_nodes_dict(edges_list):
     """Converts a adjacency list representation to a nodes dictionary
     which stores the information about neighboring nodes.
     """
-    reverse_nodes_dict = defaultdict()
-    for edge in edges_list:
-        reverse_nodes_dict[edge[1]] = edge[0]
+    reverse_nodes_dict = {v:k for k,v in edges_list}
     return reverse_nodes_dict
+        
+    #reverse_nodes_dict = defaultdict()
+    #for edge in edges_list:
+    #    reverse_nodes_dict[edge[1]] = edge[0]
+    #return reverse_nodes_dict
 
 def get_children(edges_list, leaves):
     """Get path from root to a tip"""
@@ -383,7 +386,7 @@ def scale_edge(temp_edges_dict):
     #rand_edge = next(iter(temp_edges_dict))
     rand_bl = temp_edges_dict[rand_edge]
 
-    log_c = scaler_alpha*(random.uniform(0,1)-0.5)
+    log_c = scaler_alpha*(random.random()-0.5)
     c = math.exp(log_c)
     rand_bl_new = rand_bl*c
     temp_edges_dict[rand_edge] = rand_bl_new
@@ -400,43 +403,35 @@ def scale_edge(temp_edges_dict):
 def rooted_NNI(temp_edges_list, root_node, leaves):
     """Performs Nearest Neighbor Interchange on a edges list.
     """
-
     hastings_ratio = 0.0
-
+    success_flag = False
+    
     nodes_dict = adjlist2nodes_dict(temp_edges_list)
 
-    list_edges = list(temp_edges_list)
-
-    random.shuffle(list_edges)
+    a, b = random.choice(list(temp_edges_list))
     
-    for x in list_edges:
-        if x[0] not in leaves and x[1] not in leaves and x[0] != root_node:
-            rand_edge = x
-            break
+    if a not in leaves and b not in leaves and a != root_node:
+        x, y = nodes_dict[a], nodes_dict[b]
     
-    a, b = rand_edge
-
-    x, y = nodes_dict[a], nodes_dict[b]
-    
-    
-    if x[0] == b: tgt = x[1]
-    else: tgt = x[0]
-
+        if x[0] == b: tgt = x[1]
+        else: tgt = x[0]
   
-    src_bl, tgt_bl = temp_edges_list[a,tgt], temp_edges_list[b,y[0]]
-    del temp_edges_list[a,tgt], temp_edges_list[b,y[0]]
-    temp_edges_list[a,y[0]] = tgt_bl
-    temp_edges_list[b,tgt] = src_bl
-    
+        src_bl, tgt_bl = temp_edges_list[a,tgt], temp_edges_list[b,y[0]]
+        del temp_edges_list[a,tgt], temp_edges_list[b,y[0]]
+        temp_edges_list[a,y[0]] = tgt_bl
+        temp_edges_list[b,tgt] = src_bl
+        success_flag = True
+        
     temp_nodes_dict = adjlist2nodes_dict(temp_edges_list)
     new_postorder = postorder(temp_nodes_dict, root_node, leaves)
-    
-    return temp_edges_list, new_postorder, hastings_ratio
+        
+    return temp_edges_list, new_postorder, hastings_ratio, success_flag
 
 def externalSPR(edges_list, root_node, leaves):
     """Performs Subtree-Pruning and Regrafting of an branch connected to terminal leaf
     """
     hastings_ratio = 0.0
+    success_flag = False
     
     rev_nodes_dict = adjlist2reverse_nodes_dict(edges_list)
     nodes_dict = adjlist2nodes_dict(edges_list)
@@ -445,10 +440,11 @@ def externalSPR(edges_list, root_node, leaves):
     
     leaf = random.choice(leaves)
     parent_leaf = rev_nodes_dict[leaf]
-    list_edges = list(edges_list.keys())
+    #list_edges = list(edges_list.keys())
     #print("Selected random leaf, parent ", leaf, parent_leaf)
 
-    tgt = random.choice(list_edges)
+    tgt = random.choice(list(edges_list))
+    
     #print("Target ",tgt)
     if parent_leaf == root_node or parent_leaf in tgt:
         hastings_ratio = 0.0
@@ -456,8 +452,7 @@ def externalSPR(edges_list, root_node, leaves):
     elif rev_nodes_dict[parent_leaf] in tgt:
         hastings_ratio = 0.0
         #print("Rejected extSPR")
-    else:
-        
+    else:      
         children_parent_leaf = nodes_dict[parent_leaf]
         other_child_parent_leaf = children_parent_leaf[0]
         if leaf == other_child_parent_leaf:
@@ -476,11 +471,12 @@ def externalSPR(edges_list, root_node, leaves):
         edges_list[parent_leaf,tgt[1]] = r*(1.0-u)
         edges_list[rev_nodes_dict[parent_leaf], other_child_parent_leaf]=x+y
         hastings_ratio = r/(x+y)
+        success_flag = True
         #print("Accepted extSPR")
     temp_nodes_dict = adjlist2nodes_dict(edges_list)
     new_postorder = postorder(temp_nodes_dict, root_node, leaves)
     #print(nodes_dict,"\n")
-    return edges_list, new_postorder, hastings_ratio
+    return edges_list, new_postorder, hastings_ratio, success_flag
 
 def NNI_swap_subtree(temp_edges_list, root_node, leaves):
     """Performs Nearest Neighbor Interchange on a edges list.
