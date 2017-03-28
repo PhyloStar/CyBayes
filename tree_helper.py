@@ -416,27 +416,31 @@ def rooted_NNI(temp_edges_list, root_node, leaves):
     """Performs Nearest Neighbor Interchange on a edges list.
     """
     hastings_ratio = 0.0
-    success_flag = False
+    #success_flag = False
     new_postorder, temp_nodes_dict = None, None
     
     nodes_dict = adjlist2nodes_dict(temp_edges_list)
-    
-    for a, b in temp_edges_list:
-        if a not in leaves and b not in leaves and a != root_node:
+    shuffle_keys = list(temp_edges_list.keys())
+    random.shuffle(shuffle_keys)
+    for a, b in shuffle_keys:
+        if b not in leaves and a != root_node:
             x, y = nodes_dict[a], nodes_dict[b]
             break
-    if x[0] == b: tgt = x[1]
-    else: tgt = x[0]
-  
-    src_bl, tgt_bl = temp_edges_list[a,tgt], temp_edges_list[b,y[0]]
-    del temp_edges_list[a,tgt], temp_edges_list[b,y[0]]
-    temp_edges_list[a,y[0]] = tgt_bl
-    temp_edges_list[b,tgt] = src_bl
+    #print("selected NNI ", a,b)
+    #print("leaves ", x, y)
+    if x[0] == b: src = x[1]
+    else: src = x[0]
+    tgt = random.choice(y)
+    src_bl, tgt_bl = temp_edges_list[a, src], temp_edges_list[b, tgt]
+    del temp_edges_list[a,src], temp_edges_list[b, tgt]
+    temp_edges_list[a, tgt] = tgt_bl
+    temp_edges_list[b, src] = src_bl
     
     temp_nodes_dict = adjlist2nodes_dict(temp_edges_list)
     new_postorder = postorder(temp_nodes_dict, root_node, leaves)
-        
-    return temp_edges_list, new_postorder, hastings_ratio
+    nodes_recompute = [b]+get_path2root(adjlist2reverse_nodes_dict(temp_edges_list), b, root_node)
+    
+    return temp_edges_list, new_postorder, hastings_ratio, nodes_recompute
 
 def externalSPR(edges_list, root_node, leaves):
     """Performs Subtree-Pruning and Regrafting of an branch connected to terminal leaf

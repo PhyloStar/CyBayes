@@ -30,7 +30,7 @@ def matML_dot(state, taxa, ll_mats):
     return ll
 
 
-def matML_inplace(state, taxa, ll_mats):
+def matML(state, taxa, ll_mats):
     LL_mat = defaultdict()
     root = state["root"]
     p_t = state["transitionMat"]
@@ -59,7 +59,7 @@ def matML_inplace(state, taxa, ll_mats):
     ll = np.sum(np.log(np.dot(pi, LL_mat[root])))
     return ll, LL_mat
 
-def matML_inplace_bl(state, taxa, ll_mats, cache_LL_Mat, nodes_recompute):
+def cache_matML(state, taxa, ll_mats, cache_LL_Mat, nodes_recompute):
     LL_mat = defaultdict()
     root = state["root"]
     p_t = state["transitionMat"]
