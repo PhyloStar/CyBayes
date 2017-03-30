@@ -4,6 +4,7 @@ import sys, random, copy
 import numpy as np
 from scipy import linalg
 
+
 np.random.seed(1234)
 from scipy.stats import dirichlet
 import argparse, math
@@ -175,13 +176,13 @@ if args.model == "JC":
 
 if args.model == "F81":
     params_list = ["pi", "bl", "tree"]
-    weights = np.array([1, 20, 5])
+    weights = np.array([1, 5, 5])
 elif args.model == "GTR":
     params_list = ["pi","rates", "tree", "bl"]
     weights = np.array([1, 2, 5, 20])
 elif args.model == "JC":
     params_list = ["bl", "tree"]
-    weights = np.array([20, 5])
+    weights = np.array([5, 5])
 
 tree_move_weights = np.array([5,0,5])
 bl_move_weights = np.array([10])
@@ -269,7 +270,8 @@ for n_iter in range(1, args.n_gen+1):
         
         accepts_count[param_select,move.__name__] += 1
     else:
-        state["transitionMat"][change_edge] = old_edge_p_t
+        if move.__name__ == "scale_edge":
+            state["transitionMat"][change_edge] = old_edge_p_t
     
         #TL = sum(state["tree"].values())
         #print(n_iter, state["logLikehood"], proposed_ll, current_ll,TL, param_select, move.__name__, sep="\t", flush=True)
@@ -279,9 +281,10 @@ for n_iter in range(1, args.n_gen+1):
         TL = sum(state["tree"].values())
         stationary_freqs = "\t".join([str(state["pi"][idx]) for idx in range(n_chars)])
         sampled_tree = tree_helper.adjlist2newickBL(state["tree"], tree_helper.adjlist2nodes_dict(state["tree"]), state["root"], taxa)+";"
-        print(n_iter, state["logLikehood"], proposed_ll, TL, sep="\t")
+        print(n_iter, state["logLikehood"], proposed_ll, TL, move.__name__, sep="\t")
         print(n_iter, state["logLikehood"], TL, stationary_freqs, sep="\t", file=params_fileWriter, flush=True)
-        print(n_iter, sampled_tree, state["logLikehood"], sep="\t", file=trees_fileWriter)
+        #print(n_iter, sampled_tree, state["logLikehood"], sep="\t", file=trees_fileWriter)
+        print(n_iter, sampled_tree, sep="\t", file=trees_fileWriter)
 
 params_fileWriter.close()
 trees_fileWriter.close()

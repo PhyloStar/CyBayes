@@ -95,7 +95,7 @@ def cache_matML(state, taxa, ll_mats, cache_LL_Mat, nodes_recompute):
         #    if parent not in LL_mat:
         #        LL_mat[parent] = p_t[parent,child].dot(ll_mats[child])
         #else:
-
+    #print("PI ", pi.flags, LL_mat[root].flags, sep="\n")
     ll = np.sum(np.log(np.dot(pi, LL_mat[root])))
     return ll, LL_mat
 

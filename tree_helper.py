@@ -21,7 +21,7 @@ from scipy.stats import expon
 import math
 
 bl_exp_scale = 0.1
-scaler_alpha = 0.5
+scaler_alpha = 1.0
 
 def init_tree(taxa):
     t = rtree(taxa)
@@ -457,7 +457,6 @@ def externalSPR(edges_list, root_node, leaves):
     leaf = random.choice(leaves)
     parent_leaf = rev_nodes_dict[leaf]
 
-
     tgt = random.choice(list(edges_list))
     
     if parent_leaf == root_node or parent_leaf in tgt:
@@ -519,6 +518,4 @@ def NNI_swap_subtree(temp_edges_list, root_node, leaves):
     new_postorder = postorder(temp_nodes_dict, root_node, leaves)
     
     return temp_edges_list, new_postorder, hastings_ratio
-
-
 
