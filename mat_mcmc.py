@@ -11,6 +11,7 @@ import argparse, math
 from ML import matML, cache_matML
 
 n_chars, n_taxa, alphabet, taxa, n_sites, model_normalizing_beta = None, None, None, None, None, None
+heat_exp = 1.0#0.909
 
 #gemv = linalg.get_blas_funcs("gemv")
 
@@ -206,7 +207,7 @@ print("Iteration", "logLikehood", "Tree Length",const_states, sep="\t", file=par
 for n_iter in range(1, args.n_gen+1):
     propose_state = state.copy()
     
-    current_ll, proposed_ll, ll_ratio, hr, change_edge = 0.0, 0.0, 0.0, 0.0, None
+    current_ll, proposed_ll, ll_ratio, hr, change_edge, pr_ratio = 0.0, 0.0, 0.0, 0.0, None, 0.0
         
     param_select = np.random.choice(params_list, p=weights)
     
@@ -224,7 +225,7 @@ for n_iter in range(1, args.n_gen+1):
         new_param, hr = move(state[param_select].copy())
         propose_state[param_select] = new_param
     elif param_select == "bl":
-        prop_edges_dict, hr, change_edge = move(state["tree"].copy())
+        prop_edges_dict, hr, pr_ratio, change_edge = move(state["tree"].copy())
         propose_state["tree"] = prop_edges_dict
     elif param_select == "tree":
         if move.__name__ == "rooted_NNI":
@@ -251,7 +252,8 @@ for n_iter in range(1, args.n_gen+1):
         proposed_ll, proposed_llMat = matML(propose_state, taxa, ll_mats)
 
     current_ll = state["logLikehood"]
-    ll_ratio = proposed_ll - current_ll + hr
+    ll_ratio = heat_exp*(proposed_ll - current_ll + pr_ratio)
+    ll_ratio += hr
     
     if math.log(random.random()) < ll_ratio:
         n_accepts += 1

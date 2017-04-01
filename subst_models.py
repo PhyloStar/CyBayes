@@ -41,17 +41,6 @@ def ptF81(pi,d):
     #p_t = np.reshape(np.repeat(pi*y,n_states),(n_states,n_states)).T+np.eye(n_states)*x
     return p_t
 
-def ptF811(pi,d):
-    """Compute the Probability matrix under a F81 model
-    """
-    n_states = pi.shape[0]
-    beta = 1/(1-np.dot(pi, pi))
-    x = np.exp(-beta*d)
-    y = 1.0-x
-    #p_t = np.array([pi*y]*n_states)+np.eye(n_states)*x
-    p_t = np.reshape(np.repeat(pi*y,n_states),(n_states,n_states)).T+np.eye(n_states)*x
-    return p_t
-
 def fastJC(n_states, x, y):
     JC = np.empty((n_states, n_states))
     JC.fill(y)

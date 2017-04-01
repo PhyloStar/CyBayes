@@ -246,7 +246,8 @@ def get_path2root(X, internal_node, root):
     #print("Root ", root)
     while(1):
         parent = X[internal_node]
-        paths.append(parent)
+        paths += [parent]
+        #paths.append(parent)
         internal_node = parent
         if parent == root:
             break
@@ -410,7 +411,7 @@ def scale_edge(temp_edges_dict):
     #prior_ratio = -math.log(bl_exp_scale*rand_bl_new) + math.log(bl_exp_scale*rand_bl)
     #prior_ratio = bl_exp_scale*(rand_bl-rand_bl_new)
     
-    return temp_edges_dict, log_c+prior_ratio, rand_edge
+    return temp_edges_dict, log_c, prior_ratio, rand_edge
 
 def rooted_NNI(temp_edges_list, root_node, leaves):
     """Performs Nearest Neighbor Interchange on a edges list.
