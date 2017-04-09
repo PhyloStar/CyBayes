@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.stats import dirichlet
 import random, math
+import config
 
 dir_alpha = 100.0
 scaler_alpha = 1.25

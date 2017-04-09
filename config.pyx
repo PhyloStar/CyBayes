@@ -1,4 +1,4 @@
-cdef int N_CHARS, N_TAXA, N_SITES, N_GEN, THIN
+cdef int N_CHARS, N_TAXA, N_SITES, N_GEN, THIN, N_NODES
 cdef list ALPHABET, TAXA
 cdef double NORM_BETA
 cdef dict LEAF_LLMAT

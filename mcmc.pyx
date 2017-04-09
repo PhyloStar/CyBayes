@@ -1,28 +1,26 @@
-from collections import defaultdict
-import utils
-import sys, random, copy
+#from collections import defaultdict
+import random, copy
 import numpy as np
 from scipy import linalg
 np.random.seed(1234)
+
 from scipy.stats import dirichlet
-import argparse
+
 from ML import matML, cache_matML
 from libc.math cimport exp as c_exp
 from libc.math cimport log as c_log
-from config import *
+from libc.stdlib cimport rand, RAND_MAX
+
+import config
+
+#cython: boundscheck=False, wraparound=False, nonecheck=False
 
 cdef double bl_exp_scale = 0.1
 cdef double scaler_alpha = 1.0
 cdef double epsilon = 1e-10
-#n_chars, n_taxa, alphabet, taxa, n_sites, model_normalizing_beta = None, None, None, None, None, None
 
-#cdef global int N_CHARS, N_TAXA, N_SITES, N_GEN, THIN
-#cdef global list ALPHABET, TAXA
-#cdef global double NORM_BETA
-#cdef global dict LEAF_LLMAT
-#cdef global str MODEL, IN_DTYPE
 
-cpdef get_path2root(X, internal_node, int root):
+cpdef get_path2root(dict X, int internal_node, int root):
     cdef list paths = []
     cdef int parent
     #print("Internal node ", internal_node)
@@ -58,21 +56,23 @@ cpdef scale_edge(dict temp_edges_dict):
     
     return temp_edges_dict, log_c, prior_ratio, rand_edge
 
-cpdef rooted_NNI(temp_edges_list, int root_node):
+cpdef rooted_NNI(dict temp_edges_list, int root_node):
     """Performs Nearest Neighbor Interchange on a edges list.
     """
     cdef double hastings_ratio = 0.0
     cdef double tgt_bl, src_bl
-    cdef int a, b
-    cdef list new_postorder = []
+    cdef int a, b, src, tgt
+    cdef list new_postorder
     cdef list nodes_recompute, x, y
-    cdef dict temp_nodes_dict = {}
+    cdef dict temp_nodes_dict
+    cdef dict nodes_dict
+    cdef list shuffle_keys
     
     nodes_dict = adjlist2nodes_dict(temp_edges_list)
     shuffle_keys = list(temp_edges_list.keys())
     random.shuffle(shuffle_keys)
     for a, b in shuffle_keys:
-        if b > N_TAXA and a != root_node:
+        if b > config.N_TAXA and a != root_node:
             x, y = nodes_dict[a], nodes_dict[b]
             break
     #print("selected NNI ", a,b)
@@ -91,11 +91,11 @@ cpdef rooted_NNI(temp_edges_list, int root_node):
     
     return temp_edges_list, new_postorder, hastings_ratio, nodes_recompute
 
-cpdef externalSPR(dict edges_list,int root_node,list leaves):
+cpdef externalSPR(dict edges_list,int root_node):
     """Performs Subtree-Pruning and Regrafting of an branch connected to terminal leaf
     """
     cdef double hastings_ratio, x, y, r, u
-    cdef str leaf
+    cdef int leaf
     cdef int parent_leaf
     cdef tuple tgt
     cdef list new_postorder
@@ -106,7 +106,7 @@ cpdef externalSPR(dict edges_list,int root_node,list leaves):
     
     #print("\n##### Old dictionary ########\n",nodes_dict,"\n")
     
-    leaf = random.randint(1, N_TAXA)
+    leaf = random.randint(1, config.N_TAXA)
     
     parent_leaf = rev_nodes_dict[leaf]
 
@@ -144,11 +144,13 @@ cpdef externalSPR(dict edges_list,int root_node,list leaves):
 
 cpdef mvDualSlider(double[:] pi):
     cdef int i, j 
-    i, j = random.sample(range(pi.shape[0]),2 )
+    i, j = random.sample(range(config.N_CHARS), 2)
     cdef double sum_ij = pi[i]+pi[j]
     cdef double x = random.uniform(epsilon, sum_ij)
     cdef double y = sum_ij -x
     pi[i], pi[j] = x, y
+    
+    
     return pi, 0.0
 
 cpdef postorder(dict nodes_dict, int node):
@@ -156,16 +158,16 @@ cpdef postorder(dict nodes_dict, int node):
     """
     cdef list edges_ordered_list = []
     cdef int x, y
-    #print(node, nodes_dict[node])
+    #print node, nodes_dict[node]
     x, y = nodes_dict[node]
-    #print(node, x, y)
+    #print node, x, y
     edges_ordered_list.append((node,x))
     edges_ordered_list.append((node,y))
     
-    if x > N_TAXA:
+    if x > config.N_TAXA:
         #z = postorder(nodes_dict, x, leaves)
         edges_ordered_list += postorder(nodes_dict, x)
-    if y > N_TAXA:
+    if y > config.N_TAXA:
         #w = postorder(nodes_dict, y, leaves)
         edges_ordered_list += postorder(nodes_dict, y)
     
@@ -179,7 +181,7 @@ cpdef adjlist2nodes_dict(dict edges_dict):
     cdef dict nodes_dict = {}
 
     for edge in edges_dict:
-        if edge not in nodes_dict:
+        if edge[0] not in nodes_dict:
             nodes_dict[edge[0]] = [edge[1]]
         else:
             nodes_dict[edge[0]].append(edge[1])
@@ -195,19 +197,21 @@ cpdef adjlist2reverse_nodes_dict(edges_dict):
     #print(reverse_nodes_dict)
     return reverse_nodes_dict
 
-def init_tree():
+cpdef init_tree():
     t = rtree()
     edge_dict, n_nodes = newick2bl(t)
     
     temp_edge_items = edge_dict.copy()
     
     for x, y in temp_edge_items:
-        if y in TAXA:
+        if y in config.TAXA:
             del edge_dict[x,y]
-            edge_dict[x, TAXA.index(y)+1] = 1
+            edge_dict[x, config.TAXA.index(y)+1] = 1
     
     for k, v in edge_dict.items():
         edge_dict[k] = random.expovariate(1.0/bl_exp_scale)
+    
+    #print edge_dict
     
     return edge_dict, n_nodes
 
@@ -218,7 +222,7 @@ cpdef newick2bl(t):
 
     n_internal_nodes = n_leaves+t.count("(")
     n_nodes = n_leaves+t.count("(")
-    edges_dict = defaultdict()
+    edges_dict = {}# defaultdict()
     t = t.replace(";","")
     t = t.replace(" ","")
     t = t.replace(")",",)")
@@ -251,10 +255,10 @@ cpdef newick2bl(t):
     
     return edges_dict, n_nodes
 
-def rtree():
+cpdef rtree():
     """Generates random Trees
     """
-    taxa_list = [t for t in TAXA]
+    taxa_list = [t for t in config.TAXA]
     random.shuffle(taxa_list)
     while(len(taxa_list) > 1):
         ulti_elem = str(taxa_list.pop())
@@ -265,16 +269,16 @@ def rtree():
     taxa_list.append(";")
     return "".join(taxa_list)
 
-def init_pi_er():
+cpdef init_pi_er():
     #cdef double[:] pi
     #cdef double[:,:] er
-    print N_CHARS
+    print config.N_CHARS
     
-    if MODEL == "JC":
-        pi = np.repeat(1.0/N_CHARS, N_CHARS)
-    elif MODEL in ["F81", "GTR"]:
-        pi = np.random.dirichlet(np.repeat(1,N_CHARS))
-    er = np.random.dirichlet(np.repeat(1,N_CHARS*(N_CHARS-1)/2))
+    if config.MODEL == "JC":
+        pi = np.repeat(1.0/config.N_CHARS, config.N_CHARS)
+    elif config.MODEL in ["F81", "GTR"]:
+        pi = np.random.dirichlet(np.repeat(1,config.N_CHARS))
+    er = np.random.dirichlet(np.repeat(1,config.N_CHARS*(config.N_CHARS-1)/2))
     return pi, er
 
 #def prior_probs(param, val):
@@ -288,8 +292,8 @@ cpdef get_copy_transition_mat(pi, rates, dict edges_dict,dict transition_mat,tup
     cdef int parent, child
     cdef double d, x, y
     
-    if MODEL == "F81":
-        NORM_BETA = 1/(1-np.dot(pi, pi))
+    if config.MODEL == "F81":
+        config.NORM_BETA = 1/(1-np.dot(pi, pi))
         
     cdef dict new_transition_mat = {}
     
@@ -299,17 +303,17 @@ cpdef get_copy_transition_mat(pi, rates, dict edges_dict,dict transition_mat,tup
             new_transition_mat[parent, child] = transition_mat[parent, child].copy()
         else:
             d = edges_dict[parent,child]
-            if MODEL == "F81":
-                x = c_exp(-NORM_BETA*d)
+            if config.MODEL == "F81":
+                x = c_exp(-config.NORM_BETA*d)
                 y = 1.0-x
 
-                if IN_DTYPE == "multi":
+                if config.IN_DTYPE == "multi":
                     new_transition_mat[parent,child] = ptF81(pi, x, y)
-                elif IN_DTYPE == "bin":
+                elif config.IN_DTYPE == "bin":
                     new_transition_mat[parent,child] = binaryptF81(pi, x, y)
-            elif MODEL == "JC":
-                x = c_exp(-NORM_BETA*d)
-                y = (1.0-x)/N_CHARS        
+            elif config.MODEL == "JC":
+                x = c_exp(-config.NORM_BETA*d)
+                y = (1.0-x)/config.N_CHARS
                 #p_t[parent,child] =  subst_models.fastJC(n_chars, x, y)
                 new_transition_mat[parent,child] =  ptJC(x, y)
     return new_transition_mat
@@ -320,55 +324,80 @@ cpdef get_edge_transition_mat(pi, rates, double d, dict transition_mat, tuple ch
     cdef int parent, child
     cdef double x, y
     
-    if MODEL == "F81":
-        NORM_BETA = 1/(1-np.dot(pi, pi))
+    if config.MODEL == "F81":
+        config.NORM_BETA = 1/(1-np.dot(pi, pi))
       
     parent,child = change_edge
     
-    if MODEL == "F81":
-        x = c_exp(-NORM_BETA*d)
+    if config.MODEL == "F81":
+        x = c_exp(-config.NORM_BETA*d)
         y = 1.0-x
 
-        if IN_DTYPE == "multi":
+        if config.IN_DTYPE == "multi":
             transition_mat[parent,child] = ptF81(pi, x, y)
-        elif IN_DTYPE == "bin":
+        elif config.IN_DTYPE == "bin":
             transition_mat[parent,child] = binaryptF81(pi, x, y)
-    elif MODEL == "JC":
-        x = c_exp(-NORM_BETA*d)
-        y = (1.0-x)/N_CHARS
+    elif config.MODEL == "JC":
+        x = c_exp(-config.NORM_BETA*d)
+        y = (1.0-x)/config.N_CHARS
         transition_mat[parent,child] =  ptJC(x, y)
 
     return transition_mat
 
-cpdef get_prob_t(pi, edges_dict, rates=None):
-    cdef p_t = defaultdict()
-    cdef int parent, child
+cpdef get_F81_prob(pi, edges_dict, move):
+    cdef p_t = {}
     cdef double d, x, y
+    cdef int parent, child
+    config.NORM_BETA = 1/(1-np.dot(pi, pi))
     
-    if MODEL == "F81":
-        NORM_BETA = 1/(1-np.dot(pi, pi))
-        
     for parent, child in edges_dict:
         d = edges_dict[parent,child]
-        if MODEL == "F81":
-            x = c_exp(-NORM_BETA*d)
-            y = 1.0-x
-
-            if IN_DTYPE == "multi":
-                p_t[parent,child] = ptF81(pi, x, y)
-            elif IN_DTYPE == "bin":
-                p_t[parent,child] = binaryptF81(pi, x, y)
-        elif MODEL == "JC":
-            x = c_exp(-NORM_BETA*d)
-            y = (1.0-x)/N_CHARS       
-            #p_t[parent,child] =  subst_models.fastJC(n_chars, x, y)
-            p_t[parent,child] =  ptJC(x, y)
+        x = c_exp(-config.NORM_BETA*d)
+        y = 1.0-x
+        p_t[parent,child] = move(pi, x, y)
     return p_t
+
+cpdef get_JC_prob(edges_dict, move):
+    cdef p_t = {}
+    cdef double d, x, y
+    cdef int parent, child
+    
+    for parent, child in edges_dict:
+        d = edges_dict[parent,child]
+        x = c_exp(-config.NORM_BETA*d)
+        y = (1.0-x)/config.N_CHARS
+        p_t[parent,child] = move(x, y)
+    return p_t
+
+cpdef get_prob_t(pi, dict edges_dict, rates=None):
+    if config.MODEL == "F81":
+        if config.IN_DTYPE == "multi":
+            return get_F81_prob(pi, edges_dict, ptF81)
+        else:
+            return get_F81_prob(pi, edges_dict, binaryptF81)
+    elif config.MODEL == "JC":
+        return get_JC_prob(edges_dict, ptJC)
+        
+#    for parent, child in edges_dict:
+#        d = edges_dict[parent,child]
+#        if config.MODEL == "F81":
+#            x = c_exp(-config.NORM_BETA*d)
+#            y = 1.0-x
+#            if config.IN_DTYPE == "multi":
+#                p_t[parent,child] = ptF81(pi, x, y)
+#            elif config.IN_DTYPE == "bin":
+#                p_t[parent,child] = binaryptF81(pi, x, y)
+#        elif config.MODEL == "JC":
+#            x = c_exp(-config.NORM_BETA*d)
+#            y = (1.0-x)/config.N_CHARS       
+            #p_t[parent,child] =  subst_models.fastJC(n_chars, x, y)
+#            p_t[parent,child] =  ptJC(x, y)
+#    return p_t
 
 cpdef ptJC(double x, double y):
     """Compute the Probability matrix under a F81 model
     """
-    p_t = np.empty((N_CHARS, N_CHARS))
+    p_t = np.empty((config.N_CHARS, config.N_CHARS))
     p_t.fill(y)
     np.fill_diagonal(p_t, x+y)
     return p_t
@@ -376,7 +405,7 @@ cpdef ptJC(double x, double y):
 cpdef ptF81(pi, double x, double y):
     """Compute the Probability matrix under a F81 model
     """
-    p_t = np.array([pi*y]*N_CHARS)+np.eye(N_CHARS)*x
+    p_t = np.array([pi*y]*config.N_CHARS)+np.eye(config.N_CHARS)*x
     return p_t
 
 cpdef adjlist2newickBL(dict edges_list, dict nodes_dict, int node):
@@ -387,19 +416,19 @@ cpdef adjlist2newickBL(dict edges_list, dict nodes_dict, int node):
     
     x, y = nodes_dict[node]
     #print(node, x, y)
-    if x > N_TAXA:
-        #print(x, edges_list[node,x])
+    if x > config.N_TAXA:
+        #print x, edges_list[node,x]
         tree_list.append(adjlist2newickBL(edges_list, nodes_dict, x)+":"+str(edges_list[node,x]))
     else:
-        #print(x, edges_list[node,x])
-        tree_list.append(x+":"+str(edges_list[node,x]))
+        #print x, edges_list[node,x]
+        tree_list.append(config.TAXA[x-1]+":"+str(edges_list[node,x]))
 
-    if y > N_TAXA:
+    if y > config.N_TAXA:
         #print(y)
         tree_list.append(adjlist2newickBL(edges_list, nodes_dict, y)+":"+str(edges_list[node,y]))
     else:
         #print(y, edges_list[node,y])
-        tree_list.append(y+":"+str(edges_list[node,y]))
+        tree_list.append(config.TAXA[y-1]+":"+str(edges_list[node,y]))
     #print(tree_list)
     return "("+", ".join(map(str, tree_list))+")"
 
@@ -414,16 +443,18 @@ cpdef binaryptF81(pi, double x, double y):
     return p_t
 
     
-cpdef state_init():    
+cpdef state_init():
     cdef dict state = {}
     cdef dict nodes_dict
     cdef list edges_ordered_list
-    print N_CHARS
+    print "Initializing states ", config.N_CHARS
     pi, er = init_pi_er()
+    
+    config.NORM_BETA = 1/(1-np.dot(pi, pi))
     
     state["pi"] = pi
     state["rates"] = er
-    state["tree"], state["root"] = init_tree(TAXA)
+    state["tree"], state["root"] = init_tree()
     nodes_dict = adjlist2nodes_dict(state["tree"])
     edges_ordered_list = postorder(nodes_dict, state["root"])
     state["postorder"] = edges_ordered_list

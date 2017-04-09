@@ -51,8 +51,10 @@ def readPhy(fname):
         taxa_list.append(taxa)
     f.close()
     n_chars = len(alphabet)
+    
     ll_mats= sites2Mat(site_dict, n_chars, alphabet, taxa_list)
-    return n_leaves, n_chars, alphabet, site_dict, ll_mats,taxa_list, n_sites
+    
+    return n_leaves, n_chars, alphabet, site_dict, ll_mats, taxa_list, n_sites
     
 cpdef sites2Mat(dict sites, int n_chars, list alphabet, list taxa_list):
     ll_mat = defaultdict(list)
@@ -74,7 +76,7 @@ cpdef sites2Mat(dict sites, int n_chars, list alphabet, list taxa_list):
             ll_mat[k].append(x)
     cdef dict LL_MAT = {}
     for k, v in ll_mat.items():
-        k_idx = taxa_list.index(k)
+        k_idx = taxa_list.index(k)+1
         LL_MAT[k_idx] = np.array(v,order="F").T#np.ascontiguousarray(np.array(v).T, dtype=np.float32)
         #ll_mat[k] = np.array(v).T
         #print(k, np.array(v))

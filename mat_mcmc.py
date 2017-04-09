@@ -1,7 +1,8 @@
 import argparse, utils
 from mcmc import *
 from ML import *
-from config import *
+import config
+from collections import defaultdict
 
 #global N_TAXA, N_CHARS, ALPHABET, LEAF_LLMAT, TAXA, MODEL, IN_DTYPE, NORM_BETA
 
@@ -15,28 +16,34 @@ parser.add_argument("-o","--output_file", help="Name of the out file prefix",  t
 args = parser.parse_args()
 
 if args.data_type == "bin":
-    N_TAXA, N_CHARS, ALPHABET, site_dict, LEAF_LLMAT, TAXA, n_sites = utils.readBinaryPhy(args.input_file)
+    config.N_TAXA, config.N_CHARS, config.ALPHABET, site_dict, config.LEAF_LLMAT, config.TAXA, config.N_SITES = utils.readBinaryPhy(args.input_file)
 elif args.data_type == "multi":
-    N_TAXA, N_CHARS, ALPHABET, site_dict, LEAF_LLMAT, TAXA, n_sites = utils.readPhy(args.input_file)
+    config.N_TAXA, config.N_CHARS, config.ALPHABET, site_dict, config.LEAF_LLMAT, config.TAXA, config.N_SITES = utils.readPhy(args.input_file)
 
-IN_DTYPE = args.data_type
-N_GEN = args.n_gen
-THIN = args.thin
-MODEL = args.model
+config.IN_DTYPE = args.data_type
+config.N_GEN = args.n_gen
+config.THIN = args.thin
+config.MODEL = args.model
+config.N_NODES = 2*config.N_TAXA -1
 
-print(N_CHARS)
+print("Characters ", config.N_CHARS)
+print("TAXA ", config.TAXA)
+print("Number of TAXA ", config.N_TAXA)
+print("Alphabet ", config.ALPHABET)
+#print("LEAF_LLMAT ",config.LEAF_LLMAT)
+
+
+n_rates = config.N_CHARS*(config.N_CHARS-1)//2
+prior_pi = np.array([1]*config.N_CHARS)
+prior_er = np.array([1]*n_rates)
+
+if config.MODEL == "JC":
+    config.NORM_BETA = config.N_CHARS/(config.N_CHARS-1)
 
 init_state = state_init()
 
-n_rates = N_CHARS*(N_CHARS-1)/2
-prior_pi = np.array([1]*N_CHARS)
-prior_er = np.array([1]*n_rates)
-
-print("Languages ", TAXA)
-print("Alphabet ", ALPHABET)
-
 cache_LL_Mat, cache_paths_dict = None, None
-init_state["logLikehood"], cache_LL_Mat = matML(init_state, TAXA, LEAF_LLMAT)
+init_state["logLikehood"], cache_LL_Mat = matML(init_state, config.TAXA, config.LEAF_LLMAT)
 state = init_state.copy()
 init_tree = adjlist2newickBL(state["tree"], adjlist2nodes_dict(state["tree"]), state["root"])+";"
 cache_paths_dict = adjlist2reverse_nodes_dict(state["tree"])
@@ -45,16 +52,13 @@ print("Initial Random Tree ")
 print(init_tree)
 print("Initial Likelihood ",init_state["logLikehood"])
 
-if MODEL == "JC":
-    NORM_BETA = N_CHARS/(N_CHARS-1)
-
-if MODEL == "F81":
+if config.MODEL == "F81":
     params_list = ["pi", "bl", "tree"]
     weights = np.array([1, 5, 5])
-elif MODEL == "GTR":
+elif config.MODEL == "GTR":
     params_list = ["pi","rates", "tree", "bl"]
     weights = np.array([1, 2, 5, 20])
-elif MODEL == "JC":
+elif config.MODEL == "JC":
     params_list = ["bl", "tree"]
     weights = np.array([5, 5])
 
@@ -65,19 +69,19 @@ weights = weights/sum(weights)
 tree_move_weights = tree_move_weights/sum(tree_move_weights)
 bl_move_weights = bl_move_weights/sum(bl_move_weights)
 
-moves_count = {}
-accepts_count = {}
+moves_count = defaultdict(int)
+accepts_count = defaultdict(int)
 moves_dict = {"pi": [mvDualSlider], "rates": [mvDualSlider], "tree":[rooted_NNI, externalSPR], "bl":[scale_edge]}
 n_accepts = 0.0
 
 params_fileWriter = open(args.output_file+".params","w")
 trees_fileWriter = open(args.output_file+".trees","w")
-const_states = "\t".join(["pi_"+idx for idx in ALPHABET])
+const_states = "\t".join(["pi_"+idx for idx in config.ALPHABET])
 
 print("Iteration", "logLikehood", "Tree Length",const_states, sep="\t", file=params_fileWriter)
 #print "Iteration", "logLikehood", "Tree Length",const_states
 
-for n_iter in range(1, N_GEN+1):
+for n_iter in range(1,  config.N_GEN+1):
     propose_state = state.copy()
     
     current_ll, proposed_ll, ll_ratio, hr, change_edge, pr_ratio = 0.0, 0.0, 0.0, 0.0, None, 0.0
@@ -116,20 +120,20 @@ for n_iter in range(1, N_GEN+1):
         propose_state["transitionMat"] = get_edge_transition_mat(propose_state["pi"], propose_state["rates"], propose_state["tree"][change_edge], state["transitionMat"], change_edge)
         #print("Change edge ", change_edge[1], state["root"])
         nodes_recompute = get_path2root(cache_paths_dict, change_edge[1], state["root"])
-        proposed_ll, proposed_llMat = cache_matML(propose_state, TAXA, LEAF_LLMAT, cache_LL_Mat, nodes_recompute)
+        proposed_ll, proposed_llMat = cache_matML(propose_state, config.TAXA, config.LEAF_LLMAT, cache_LL_Mat, nodes_recompute)
     elif move.__name__ == "rooted_NNI":
 #            nodes_recompute = [src2[0]]+tree_helper.get_path2root(tree_helper.adjlist2reverse_nodes_dict(prop_edges_dict), src2[0], state["root"])
         propose_state["transitionMat"] = get_prob_t(propose_state["pi"], propose_state["tree"])
-        proposed_ll, proposed_llMat = cache_matML(propose_state, TAXA, LEAF_LLMAT, cache_LL_Mat, nodes_recompute)
+        proposed_ll, proposed_llMat = cache_matML(propose_state, config.TAXA, config.LEAF_LLMAT, cache_LL_Mat, nodes_recompute)
     else:
         propose_state["transitionMat"] = get_prob_t(propose_state["pi"], propose_state["tree"])
-        proposed_ll, proposed_llMat = matML(propose_state, TAXA, LEAF_LLMAT)
+        proposed_ll, proposed_llMat = matML(propose_state, config.TAXA, config.LEAF_LLMAT)
 
     current_ll = state["logLikehood"]
     ll_ratio = proposed_ll - current_ll + pr_ratio
     ll_ratio += hr
     
-    if c_log(random.random()) < ll_ratio:
+    if np.log(random.random()) < ll_ratio:
         n_accepts += 1
         if param_select == "bl":
             state["tree"] = propose_state["tree"]
@@ -153,9 +157,9 @@ for n_iter in range(1, N_GEN+1):
         #print(n_iter, state["logLikehood"], proposed_ll, current_ll,TL, param_select, move.__name__, sep="\t", flush=True)
 
     #del propose_state
-    if n_iter % THIN == 0:
+    if n_iter % config.THIN == 0:
         TL = sum(state["tree"].values())
-        stationary_freqs = "\t".join([str(state["pi"][idx]) for idx in range(N_CHARS)])
+        stationary_freqs = "\t".join([str(state["pi"][idx]) for idx in range(config.N_CHARS)])
         sampled_tree = adjlist2newickBL(state["tree"], adjlist2nodes_dict(state["tree"]), state["root"])+";"
         print(n_iter, state["logLikehood"], proposed_ll, TL, move.__name__, sep="\t")
         print(n_iter, state["logLikehood"], TL, stationary_freqs, sep="\t", file=params_fileWriter, flush=True)
