@@ -1,8 +1,12 @@
 from collections import defaultdict
 import numpy as np
 
-def readBinaryPhy(fname):
-    site_dict = defaultdict()
+cpdef readBinaryPhy(str fname):
+    site_dict = {}#defaultdict()
+    cdef list alphabet, taxa_list
+    cdef int n_leaves, n_sites, n_chars
+    cdef str line, taxa, char_vector, ch, header
+    
     alphabet, taxa_list = [], []
     f = open(fname)
     header = f.readline().strip()
@@ -25,7 +29,7 @@ def readBinaryPhy(fname):
     return n_leaves, n_chars, alphabet, site_dict, ll_mats,taxa_list, n_sites
 
 def readPhy(fname):
-    site_dict = defaultdict()
+    site_dict = {}#defaultdict()
     alphabet, taxa_list = [], []
     f = open(fname)
     header = f.readline().strip()
@@ -47,22 +51,12 @@ def readPhy(fname):
         taxa_list.append(taxa)
     f.close()
     n_chars = len(alphabet)
-    ll_mats= sites2Mat(site_dict, n_chars, alphabet)
+    ll_mats= sites2Mat(site_dict, n_chars, alphabet, taxa_list)
     return n_leaves, n_chars, alphabet, site_dict, ll_mats,taxa_list, n_sites
     
-def transform(site_dict):
-    sites = defaultdict(lambda: defaultdict())
-    for t, cvec in site_dict.items():
-        for i, ch in enumerate(cvec):
-            sites[i][t] = ch
-    return sites
-    
-def print_mcmcstate(mcmc_state):
-    for k, v in mcmc_state.items():
-        print(k, v)
-
-def sites2Mat(sites, n_chars, alphabet):
+cpdef sites2Mat(dict sites, int n_chars, list alphabet, list taxa_list):
     ll_mat = defaultdict(list)
+    cdef int k_idx  
     for k, v in sites.items():
         for ch in v:
             if ch in ["?", "-"]:
@@ -78,13 +72,14 @@ def sites2Mat(sites, n_chars, alphabet):
                 idx = alphabet.index(ch)
                 x[idx] = 1.0
             ll_mat[k].append(x)
-
+    cdef dict LL_MAT = {}
     for k, v in ll_mat.items():
-        ll_mat[k] = np.array(v,order="F").T#np.ascontiguousarray(np.array(v).T, dtype=np.float32)
+        k_idx = taxa_list.index(k)
+        LL_MAT[k_idx] = np.array(v,order="F").T#np.ascontiguousarray(np.array(v).T, dtype=np.float32)
         #ll_mat[k] = np.array(v).T
         #print(k, np.array(v))
         #print(ll_mat[k].flags)
-    return ll_mat
+    return LL_MAT
     
     
     
