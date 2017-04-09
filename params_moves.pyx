@@ -12,13 +12,6 @@ def mvDirichlet(pi):
     hastings_ratio = dirichlet.logpdf(pi, pi_new) - dirichlet.logpdf(pi_new, pi)
     return pi_new, hastings_ratio
 
-def mvDualSlider(pi):
-    i, j = random.sample(range(pi.shape[0]),2 )
-    sum_ij = pi[i]+pi[j]
-    x = random.uniform(epsilon, sum_ij)
-    y = sum_ij -x
-    pi[i], pi[j] = x, y
-    return pi, 0.0
 
 def mvScaler(x):
     log_c = scaler_alpha*(np.random.uniform()-0.5)
@@ -39,7 +32,7 @@ def mvSlider(x, a, b):
     x_hat = np.random.uniform(x-0.5, x+0.5)
     if x_hat < a:
         return 2.0*a -x_hat
-    elif xhat > b:
+    elif x_hat > b:
         return 2.0*b -x_hat
     else:
         return x_hat 
