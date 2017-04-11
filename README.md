@@ -1,20 +1,21 @@
-# PyBayes
+# CyBayes
 ## Features
 
 - Performs MCMC based phylogenetics.
-- Can handle multistate characters upto 52 states.
+- Can handle multistate characters.
 - Can handle polymorphism (or synonymous states of a concept).
-- Can handle Jukes-Cantor, Felsenstein-81, and Generalized Time Reversible models.
+- Can handle Jukes-Cantor, Felsenstein-81 models.
 - Handles only Rooted trees like in linguistics. So, the trees will have branch lengths and a root.
 - Handles trees like Phylo class in ape package of R.
 
 ## Parameter space moves
-- Performs tree moves using SPR and NNI.
+- Performs tree moves using external SPR and NNI.
 - Branch lengths are sampled according to a exponential distribution.
 - Substitution parameters are sampled using Dirichlet and DualSampler move.
 
 
 ## Usage
+> Compile code using ```python setup.py build_ext --inplace```
 ```
  usage: mat_mcmc.py [-h] [-i INPUT_FILE] [-m MODEL] [-n N_GEN] [-t THIN]
                    [-o OUTPUT_FILE]
