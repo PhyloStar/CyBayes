@@ -38,7 +38,7 @@ optional arguments:
 
 Example Usage:
 ```
-python3 mat_mcmc.py -i data/PIE.phy -m JC -n 10000 -t 100 -o phon_ringe_jc
+python3 mat_mcmc.py -i data/PIE.phy -m JC -n 10000 -t 100 -o temp
 ```  
 # Output
 - Returns a .params file that can be viewed in [Tracer] (http://tree.bio.ed.ac.uk/software/tracer/). The .params file consists of the likelihood and the tree length for each state.
