@@ -1,19 +1,20 @@
 import numpy as np
 import config
-#cython: boundscheck=False, wraparound=False, nonecheck=False
+
 
 cpdef matML(dict state, list taxa, dict ll_mats):
     cdef dict LL_mat = {}
     cdef int root, parent
     #cdef double[:] p_t, pi
     cdef list edges
+    #cdef dict p_t
     
     root = state["root"]
     p_t = state["transitionMat"]
     pi = state["pi"]
     edges = state["postorder"]
 
-    for parent, child in edges[::-1]:
+    for parent, child in edges:
         if child <= config.N_TAXA:
             if parent not in LL_mat:
                 LL_mat[parent] = p_t[parent,child].dot(ll_mats[child])
@@ -32,13 +33,14 @@ cpdef cache_matML(dict state, list taxa, dict ll_mats, dict cache_LL_Mat, list n
     cdef int root, parent
     #cdef double[:] p_t, pi
     cdef list edges
+    #cdef dict p_t
     
     root = state["root"]
     p_t = state["transitionMat"]
     pi = state["pi"]
     edges = state["postorder"]
 
-    for parent, child in edges[::-1]:
+    for parent, child in edges:
         
         if parent in nodes_recompute:
             if child <= config.N_TAXA:

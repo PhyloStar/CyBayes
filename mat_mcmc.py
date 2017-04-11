@@ -1,3 +1,4 @@
+from __future__ import print_function
 import argparse, utils
 from mcmc import *
 from ML import *
@@ -30,7 +31,7 @@ print("Characters ", config.N_CHARS)
 print("TAXA ", config.TAXA)
 print("Number of TAXA ", config.N_TAXA)
 print("Alphabet ", config.ALPHABET)
-#print("LEAF_LLMAT ",config.LEAF_LLMAT)
+
 
 
 n_rates = config.N_CHARS*(config.N_CHARS-1)//2
@@ -54,20 +55,20 @@ print("Initial Likelihood ",init_state["logLikehood"])
 
 if config.MODEL == "F81":
     params_list = ["pi", "bl", "tree"]
-    weights = np.array([1, 5, 5])
+    weights = np.array([1, 5, 5], dtype=np.float64)
 elif config.MODEL == "GTR":
     params_list = ["pi","rates", "tree", "bl"]
-    weights = np.array([1, 2, 5, 20])
+    weights = np.array([1, 2, 5, 20], dtype=np.float64)
 elif config.MODEL == "JC":
     params_list = ["bl", "tree"]
-    weights = np.array([5, 5])
+    weights = np.array([5, 5], dtype=np.float64)
 
-tree_move_weights = np.array([5,5])
-bl_move_weights = np.array([10])
+tree_move_weights = np.array([5,5], dtype=np.float64)
+bl_move_weights = np.array([10], dtype=np.float64)
 
-weights = weights/sum(weights)
-tree_move_weights = tree_move_weights/sum(tree_move_weights)
-bl_move_weights = bl_move_weights/sum(bl_move_weights)
+weights = weights/np.sum(weights)
+tree_move_weights = tree_move_weights/np.sum(tree_move_weights)
+bl_move_weights = bl_move_weights/np.sum(bl_move_weights)
 
 moves_count = defaultdict(int)
 accepts_count = defaultdict(int)
@@ -162,9 +163,9 @@ for n_iter in range(1,  config.N_GEN+1):
         stationary_freqs = "\t".join([str(state["pi"][idx]) for idx in range(config.N_CHARS)])
         sampled_tree = adjlist2newickBL(state["tree"], adjlist2nodes_dict(state["tree"]), state["root"])+";"
         print(n_iter, state["logLikehood"], proposed_ll, TL, move.__name__, sep="\t")
-        print(n_iter, state["logLikehood"], TL, stationary_freqs, sep="\t", file=params_fileWriter, flush=True)
+        print(n_iter, state["logLikehood"], TL, stationary_freqs, sep="\t", file=params_fileWriter)
         
-        print(n_iter, sampled_tree, state["logLikehood"], sep="\t", file=trees_fileWriter)
+        #print(n_iter, sampled_tree, state["logLikehood"], sep="\t", file=trees_fileWriter)
         print(n_iter, sampled_tree, sep="\t", file=trees_fileWriter)
 
 #params_fileWriter.close()

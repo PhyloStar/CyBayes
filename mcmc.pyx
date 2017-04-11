@@ -1,6 +1,7 @@
-#from collections import defaultdict
-import random, copy
+import random
 import numpy as np
+cimport numpy as np
+
 from scipy import linalg
 np.random.seed(1234)
 
@@ -13,7 +14,7 @@ from libc.stdlib cimport rand, RAND_MAX
 
 import config
 
-#cython: boundscheck=False, wraparound=False, nonecheck=False
+from multiprocessing import Pool
 
 cdef double bl_exp_scale = 0.1
 cdef double scaler_alpha = 1.0
@@ -86,7 +87,7 @@ cpdef rooted_NNI(dict temp_edges_list, int root_node):
     temp_edges_list[b, src] = src_bl
     
     temp_nodes_dict = adjlist2nodes_dict(temp_edges_list)
-    new_postorder = postorder(temp_nodes_dict, root_node)
+    new_postorder = postorder(temp_nodes_dict, root_node)[::-1]
     nodes_recompute = [b]+get_path2root(adjlist2reverse_nodes_dict(temp_edges_list), b, root_node)
     
     return temp_edges_list, new_postorder, hastings_ratio, nodes_recompute
@@ -138,7 +139,7 @@ cpdef externalSPR(dict edges_list,int root_node):
 
         
     temp_nodes_dict = adjlist2nodes_dict(edges_list)
-    new_postorder = postorder(temp_nodes_dict, root_node)
+    new_postorder = postorder(temp_nodes_dict, root_node)[::-1]
 
     return edges_list, new_postorder, hastings_ratio
 
@@ -357,6 +358,27 @@ cpdef get_F81_prob(pi, edges_dict, move):
         p_t[parent,child] = move(pi, x, y)
     return p_t
 
+cpdef par_get_JC_prob(edges_dict, move):
+    cdef p_t = {}
+    cdef double d, x, y
+    cdef int parent, child
+    
+    p = Pool(2)
+    keys, values= zip(*edges_dict.items())
+    X = np.exp(-config.NORM_BETA*np.array(values))
+    Y = 1.0-X
+    Y /= config.N_CHARS
+    proc_values = p.starmap(ptJC, zip(X,Y),chunksize=50)
+    
+    p_t = dict(zip(keys, proc_values))
+    p.close()
+    #for parent, child in edges_dict:
+    #    d = edges_dict[parent,child]
+    #    x = c_exp(-config.NORM_BETA*d)
+    #    y = (1.0-x)/config.N_CHARS
+    #    p_t[parent,child] = move(x, y)
+    return p_t
+
 cpdef get_JC_prob(edges_dict, move):
     cdef p_t = {}
     cdef double d, x, y
@@ -377,26 +399,11 @@ cpdef get_prob_t(pi, dict edges_dict, rates=None):
             return get_F81_prob(pi, edges_dict, binaryptF81)
     elif config.MODEL == "JC":
         return get_JC_prob(edges_dict, ptJC)
-        
-#    for parent, child in edges_dict:
-#        d = edges_dict[parent,child]
-#        if config.MODEL == "F81":
-#            x = c_exp(-config.NORM_BETA*d)
-#            y = 1.0-x
-#            if config.IN_DTYPE == "multi":
-#                p_t[parent,child] = ptF81(pi, x, y)
-#            elif config.IN_DTYPE == "bin":
-#                p_t[parent,child] = binaryptF81(pi, x, y)
-#        elif config.MODEL == "JC":
-#            x = c_exp(-config.NORM_BETA*d)
-#            y = (1.0-x)/config.N_CHARS       
-            #p_t[parent,child] =  subst_models.fastJC(n_chars, x, y)
-#            p_t[parent,child] =  ptJC(x, y)
-#    return p_t
 
 cpdef ptJC(double x, double y):
     """Compute the Probability matrix under a F81 model
     """
+    cdef np.ndarray p_t
     p_t = np.empty((config.N_CHARS, config.N_CHARS))
     p_t.fill(y)
     np.fill_diagonal(p_t, x+y)
@@ -405,6 +412,7 @@ cpdef ptJC(double x, double y):
 cpdef ptF81(pi, double x, double y):
     """Compute the Probability matrix under a F81 model
     """
+    cdef np.ndarray p_t
     p_t = np.array([pi*y]*config.N_CHARS)+np.eye(config.N_CHARS)*x
     return p_t
 
@@ -435,6 +443,7 @@ cpdef adjlist2newickBL(dict edges_list, dict nodes_dict, int node):
 cpdef binaryptF81(pi, double x, double y):
     """Compute the probability matrix for binary characters
     """
+    cdef np.ndarray p_t
     p_t = np.empty((2,2))
     p_t[0, 0] = pi[0]+pi[1]*x
     p_t[0, 1] = pi[1]*y
@@ -456,7 +465,7 @@ cpdef state_init():
     state["rates"] = er
     state["tree"], state["root"] = init_tree()
     nodes_dict = adjlist2nodes_dict(state["tree"])
-    edges_ordered_list = postorder(nodes_dict, state["root"])
+    edges_ordered_list = postorder(nodes_dict, state["root"])[::-1]
     state["postorder"] = edges_ordered_list
     state["transitionMat"] = get_prob_t(state["pi"], state["tree"])
     return state
