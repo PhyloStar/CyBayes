@@ -5,7 +5,7 @@ from collections import defaultdict
 
 map_chars = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V"]
 
-if argv[1].startswith('Mayan') or argv[1].startswith('Mixe'):
+if argv[1].startswith('Mayan') or argv[1].startswith('Mixe') or argv[1].startswith('huon'):
     rc(schema='asjp')
 else:
     rc(schema='ipa')

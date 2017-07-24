@@ -273,12 +273,13 @@ cpdef rtree():
 cpdef init_pi_er():
     #cdef double[:] pi
     #cdef double[:,:] er
-    print config.N_CHARS
+    #print config.N_CHARS
     
     if config.MODEL == "JC":
         pi = np.repeat(1.0/config.N_CHARS, config.N_CHARS)
     elif config.MODEL in ["F81", "GTR"]:
         pi = np.random.dirichlet(np.repeat(1,config.N_CHARS))
+        #print pi
     er = np.random.dirichlet(np.repeat(1,config.N_CHARS*(config.N_CHARS-1)/2))
     return pi, er
 
@@ -350,11 +351,12 @@ cpdef get_F81_prob(pi, edges_dict, move):
     cdef double d, x, y
     cdef int parent, child
     config.NORM_BETA = 1/(1-np.dot(pi, pi))
-    
+    #print "NORM BETA ", config.NORM_BETA
     for parent, child in edges_dict:
         d = edges_dict[parent,child]
         x = c_exp(-config.NORM_BETA*d)
         y = 1.0-x
+        #print x, y
         p_t[parent,child] = move(pi, x, y)
     return p_t
 
@@ -409,11 +411,37 @@ cpdef ptJC(double x, double y):
     np.fill_diagonal(p_t, x+y)
     return p_t
 
+cpdef binaryptF81(pi, double x, double y):
+    """Compute the probability matrix for binary characters
+    """
+    cdef np.ndarray p_t
+    p_t = np.empty((2,2))
+    p_t[0, 0] = pi[0]+pi[1]*x
+    p_t[0, 1] = pi[1]*y
+    p_t[1, 0] = pi[0]*y
+    p_t[1, 1] = pi[1]+pi[0]*x
+    return p_t
+
 cpdef ptF81(pi, double x, double y):
     """Compute the Probability matrix under a F81 model
     """
     cdef np.ndarray p_t
-    p_t = np.array([pi*y]*config.N_CHARS)+np.eye(config.N_CHARS)*x
+    #print pi, x, y
+    p_t = np.empty((config.N_CHARS, config.N_CHARS))
+    cdef int i, j
+    for i in range(config.N_CHARS):
+        for j in range(config.N_CHARS):
+            if i==j:
+                p_t[i,j] = pi[i]*y+x
+            else:
+                p_t[i,j] = pi[j]*y
+
+    #for i in range(config.N_CHARS):
+    #    p_t[i] = pi*y
+    #p_t += np.eye(config.N_CHARS)*x
+    #p_t = np.tile(pi*y,(config.N_CHARS, 1)) + np.eye(config.N_CHARS)*x
+
+    #p_t = np.array([pi*y]*config.N_CHARS)+np.eye(config.N_CHARS)*x
     return p_t
 
 cpdef adjlist2newickBL(dict edges_list, dict nodes_dict, int node):
@@ -440,23 +468,14 @@ cpdef adjlist2newickBL(dict edges_list, dict nodes_dict, int node):
     #print(tree_list)
     return "("+", ".join(map(str, tree_list))+")"
 
-cpdef binaryptF81(pi, double x, double y):
-    """Compute the probability matrix for binary characters
-    """
-    cdef np.ndarray p_t
-    p_t = np.empty((2,2))
-    p_t[0, 0] = pi[0]+pi[1]*x
-    p_t[0, 1] = pi[1]*y
-    p_t[1, 0] = pi[0]*y
-    p_t[1, 1] = pi[1]+pi[0]*x
-    return p_t
+
 
     
 cpdef state_init():
     cdef dict state = {}
     cdef dict nodes_dict
     cdef list edges_ordered_list
-    print "Initializing states ", config.N_CHARS
+    #print "Initializing states ", config.N_CHARS
     pi, er = init_pi_er()
     
     config.NORM_BETA = 1/(1-np.dot(pi, pi))

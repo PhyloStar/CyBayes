@@ -21,6 +21,7 @@ if args.data_type == "bin":
 elif args.data_type == "multi":
     config.N_TAXA, config.N_CHARS, config.ALPHABET, site_dict, config.LEAF_LLMAT, config.TAXA, config.N_SITES = utils.readPhy(args.input_file)
 
+
 config.IN_DTYPE = args.data_type
 config.N_GEN = args.n_gen
 config.THIN = args.thin
@@ -42,7 +43,7 @@ if config.MODEL == "JC":
     config.NORM_BETA = config.N_CHARS/(config.N_CHARS-1)
 
 init_state = state_init()
-
+print(init_state["pi"])
 cache_LL_Mat, cache_paths_dict = None, None
 init_state["logLikehood"], cache_LL_Mat = matML(init_state, config.TAXA, config.LEAF_LLMAT)
 state = init_state.copy()
