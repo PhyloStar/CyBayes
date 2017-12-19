@@ -25,6 +25,7 @@ cpdef matML(dict state, list taxa, dict ll_mats):
                 LL_mat[parent] = p_t[parent,child].dot(LL_mat[child])
             else:
                 LL_mat[parent] *= p_t[parent,child].dot(LL_mat[child])
+    #print(pi, LL_mat[root])
     ll = np.sum(np.log(np.dot(pi, LL_mat[root])))
     return ll, LL_mat
 
@@ -55,7 +56,7 @@ cpdef cache_matML(dict state, list taxa, dict ll_mats, dict cache_LL_Mat, list n
                     LL_mat[parent] *= p_t[parent,child].dot(LL_mat[child])
         else:
             LL_mat[parent] = cache_LL_Mat[parent]#.copy()
-        
+    #print(pi, LL_mat[root])
     ll = np.sum(np.log(np.dot(pi, LL_mat[root])))
     return ll, LL_mat
 
