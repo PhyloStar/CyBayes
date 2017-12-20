@@ -14,7 +14,7 @@ import random
 import profile
 from operator import itemgetter
 import numpy as np
-random.seed(12345)
+random.seed(1234)
 import itertools as it
 np.random.seed(1234)
 from scipy.stats import expon

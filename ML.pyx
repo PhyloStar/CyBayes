@@ -19,13 +19,25 @@ cpdef matML(dict state, list taxa, dict ll_mats):
             if parent not in LL_mat:
                 LL_mat[parent] = p_t[parent,child].dot(ll_mats[child])
             else:
+                #print("Leaf ", child, " parent ", parent, " before multiplication ", ll_mats[child])
+                #print("Leaf ", child, " parent ", " prob. transition matrix ", p_t[parent,child])
                 LL_mat[parent] *= p_t[parent,child].dot(ll_mats[child])
+                #print("Leaf ", child, " parent ", "after multiplication ", LL_mat[parent])
         else:
             if parent not in LL_mat:
                 LL_mat[parent] = p_t[parent,child].dot(LL_mat[child])
             else:
-                LL_mat[parent] *= p_t[parent,child].dot(LL_mat[child])
+                #print("Before multiplication ", LL_mat[child])
+                #print("prob. transition matrix ", p_t[parent,child])
+                X = p_t[parent,child].dot(LL_mat[child])
+                #print("New marginal ", X)
+                #print("Before multiplication ", LL_mat[parent])
+                LL_mat[parent] *= X
+                #print("After multiplication ", LL_mat[parent])
     #print(pi, LL_mat[root])
+    #print(np.sum(np.log(np.dot(pi, LL_mat[root]))))
+    #ll = np.sum(np.log(np.sum(np.dot(pi, LL_mat[root]),axis =0)))
+    #ll = np.sum(np.log(np.dot(pi, LL_mat[root])))
     ll = np.sum(np.log(np.dot(pi, LL_mat[root])))
     return ll, LL_mat
 
@@ -57,6 +69,9 @@ cpdef cache_matML(dict state, list taxa, dict ll_mats, dict cache_LL_Mat, list n
         else:
             LL_mat[parent] = cache_LL_Mat[parent]#.copy()
     #print(pi, LL_mat[root])
+    #print(np.sum(np.log(np.dot(pi, LL_mat[root]))))
+    #ll = np.sum(np.log(np.dot(pi, LL_mat[root])))
+    #ll = np.sum(np.log(np.sum(np.dot(pi, LL_mat[root]),axis =0)))
     ll = np.sum(np.log(np.dot(pi, LL_mat[root])))
     return ll, LL_mat
 

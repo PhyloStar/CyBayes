@@ -62,7 +62,8 @@ cpdef sites2Mat(dict sites, int n_chars, list alphabet, list taxa_list):
     for k, v in sites.items():
         for ch in v:
             if ch in ["?", "-"]:
-                x = np.ones(n_chars)
+                x = 0.000000001*np.ones(n_chars)
+                #x = np.ones(n_chars)
             elif "/" in ch:
                 y = ch.split("/")
                 x = np.zeros(n_chars)

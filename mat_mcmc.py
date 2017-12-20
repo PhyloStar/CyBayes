@@ -35,7 +35,6 @@ print("Number of TAXA ", config.N_TAXA)
 print("Alphabet ", config.ALPHABET)
 
 
-
 n_rates = config.N_CHARS*(config.N_CHARS-1)//2
 prior_pi = np.array([1]*config.N_CHARS)
 prior_er = np.array([1]*n_rates)
