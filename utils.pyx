@@ -26,6 +26,7 @@ cpdef readBinaryPhy(str fname):
     f.close()
     n_chars = len(alphabet)
     ll_mats= sites2Mat(site_dict, n_chars, alphabet, taxa_list)
+    print(ll_mats)
     return n_leaves, n_chars, alphabet, site_dict, ll_mats,taxa_list, n_sites
 
 def readPhy(fname):
@@ -63,7 +64,7 @@ cpdef sites2Mat(dict sites, int n_chars, list alphabet, list taxa_list):
         for ch in v:
             if ch in ["?", "-"]:
                 x = 0.000000001*np.ones(n_chars)
-                #x = np.ones(n_chars)
+                #x = np.ones(n_chars)/n_chars
             elif "/" in ch:
                 y = ch.split("/")
                 x = np.zeros(n_chars)
