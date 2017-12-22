@@ -17,31 +17,31 @@ cpdef matML(dict state, list taxa, dict ll_mats):
     for parent, child in edges:
         if child <= config.N_TAXA:
             if parent not in LL_mat:
-                print("Leaf ", child, " No parent ", parent, " before multiplication ", ll_mats[child])
-                print("prob. transition matrix ", p_t[parent,child])
+                #print("Leaf ", child, " No parent ", parent, " before multiplication ", ll_mats[child])
+                #print("prob. transition matrix ", p_t[parent,child])
                 LL_mat[parent] = p_t[parent,child].dot(ll_mats[child])
-                print("Leaf ", child, " parent ", parent, " after multiplication ", LL_mat[parent])
+                #print("Leaf ", child, " parent ", parent, " after multiplication ", LL_mat[parent])
             else:
-                print("Leaf ", child, " parent ", parent, " before multiplication ", ll_mats[child])
-                print("prob. transition matrix ", p_t[parent,child])
-                print("Before multiplication ", LL_mat[parent])
+                #print("Leaf ", child, " parent ", parent, " before multiplication ", ll_mats[child])
+                #print("prob. transition matrix ", p_t[parent,child])
+                #print("Before multiplication ", LL_mat[parent])
                 LL_mat[parent] *= p_t[parent,child].dot(ll_mats[child])
-                print("Leaf ", child, " parent ", parent," after multiplication ", LL_mat[parent])
+                #print("Leaf ", child, " parent ", parent," after multiplication ", LL_mat[parent])
         else:
             if parent not in LL_mat:
-                print("Not leaf ", child, " No parent ", parent, " before multiplication ", LL_mat[child])
-                print("prob. transition matrix ", p_t[parent,child])            
+                #print("Not leaf ", child, " No parent ", parent, " before multiplication ", LL_mat[child])
+                #print("prob. transition matrix ", p_t[parent,child])            
                 LL_mat[parent] = p_t[parent,child].dot(LL_mat[child])
-                print("Not leaf ", child, " parent ", parent, "after multiplication ", LL_mat[parent])                
+                #print("Not leaf ", child, " parent ", parent, "after multiplication ", LL_mat[parent])                
             else:
-                print("Before multiplication ", LL_mat[child])
-                print("prob. transition matrix ", p_t[parent,child])
+                #print("Before multiplication ", LL_mat[child])
+                #print("prob. transition matrix ", p_t[parent,child])
                 X = p_t[parent,child].dot(LL_mat[child])
                 #print("New marginal ", X)
-                print("Before multiplication ", LL_mat[parent])
+                #print("Before multiplication ", LL_mat[parent])
                 LL_mat[parent] *= X
-                print("After multiplication ", LL_mat[parent])
-    print(pi, LL_mat[root])
+                #print("After multiplication ", LL_mat[parent])
+    #print(pi, LL_mat[root])
     #print(np.sum(np.log(np.dot(pi, LL_mat[root]))))
     #ll = np.sum(np.log(np.sum(np.dot(pi, LL_mat[root]),axis =0)))
     #ll = np.sum(np.log(np.dot(pi, LL_mat[root])))
