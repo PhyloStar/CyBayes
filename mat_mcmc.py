@@ -4,7 +4,8 @@ from mcmc import *
 from ML import *
 import config
 from collections import defaultdict
-
+np.random.seed(1234)
+random.seed(1234)
 #global N_TAXA, N_CHARS, ALPHABET, LEAF_LLMAT, TAXA, MODEL, IN_DTYPE, NORM_BETA
 
 parser = argparse.ArgumentParser()

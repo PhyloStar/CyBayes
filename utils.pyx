@@ -11,7 +11,7 @@ cpdef readBinaryPhy(str fname):
     f = open(fname)
     header = f.readline().strip()
     n_leaves, n_sites = map(int,header.split(" "))
-    
+    alphabet = ["0", "1"]
     for line in f:
         if len(line.strip()) < 1:
             continue

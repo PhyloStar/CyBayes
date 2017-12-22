@@ -4,7 +4,7 @@ cimport numpy as np
 
 from scipy import linalg
 np.random.seed(1234)
-
+random.seed(1234)
 from scipy.stats import dirichlet
 
 from ML import matML, cache_matML
