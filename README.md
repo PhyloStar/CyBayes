@@ -18,7 +18,7 @@
 > Compile code using ```python setup.py build_ext --inplace```
 ```
  usage: mat_mcmc.py [-h] [-i INPUT_FILE] [-m MODEL] [-n N_GEN] [-t THIN]
-                   [-o OUTPUT_FILE]
+                   [-o OUTPUT_FILE] [-d bin]
 
 optional arguments:
   -h, --help            show this help message and exit
