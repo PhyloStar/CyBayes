@@ -9,6 +9,7 @@ N_TAXA = 0
 N_SITES = 0
 N_GEN = 0
 THIN = 0
+N_CATS = 4
 
 ALPHABET = []
 TAXA = []
