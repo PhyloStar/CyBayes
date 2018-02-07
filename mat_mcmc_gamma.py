@@ -1,4 +1,4 @@
-from __future__ import print_function
+#from __future__ import print_function
 import argparse, utils
 from mcmc_gamma import *
 from ML_gamma import *
