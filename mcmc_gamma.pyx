@@ -4,10 +4,12 @@ cimport numpy as np
 
 from scipy import linalg
 np.random.seed(1234)
-
+random.seed(1234)
 from scipy.stats import dirichlet
 
-from ML import matML, cache_matML
+from scipy.special import gammainc
+from scipy.stats import chi2
+
 from libc.math cimport exp as c_exp
 from libc.math cimport log as c_log
 from libc.stdlib cimport rand, RAND_MAX
@@ -56,6 +58,13 @@ cpdef scale_edge(dict temp_edges_dict):
     #prior_ratio = bl_exp_scale*(rand_bl-rand_bl_new)
     
     return temp_edges_dict, log_c, prior_ratio, rand_edge
+
+cpdef scale_alpha(float alpha):
+    log_c = scaler_alpha*(random.random()-0.5)
+    c = c_exp(log_c)
+    new_alpha = alpha*c
+    pr_ratio = -(new_alpha-alpha)
+    return new_alpha, log_c, pr_ratio
 
 cpdef rooted_NNI(dict temp_edges_list, int root_node):
     """Performs Nearest Neighbor Interchange on a edges list.
@@ -145,13 +154,14 @@ cpdef externalSPR(dict edges_list,int root_node):
 
 cpdef mvDualSlider(double[:] pi):
     cdef int i, j 
-    i, j = random.sample(range(config.N_CHARS), 2)
+    i, j = random.sample(range(pi.shape[0]), 2)
+#    i, j = random.sample(range(config.N_CHARS), 2)
+
     cdef double sum_ij = pi[i]+pi[j]
     cdef double x = random.uniform(epsilon, sum_ij)
     cdef double y = sum_ij -x
     pi[i], pi[j] = x, y
-    
-    
+        
     return pi, 0.0
 
 cpdef postorder(dict nodes_dict, int node):
@@ -216,6 +226,9 @@ cpdef init_tree():
     
     return edge_dict, n_nodes
 
+cpdef init_alpha_rate():
+    return random.expovariate(1.0)
+    
 cpdef newick2bl(t):
     """Implement a function that can read branch lengths from a newick tree
     """
@@ -281,6 +294,8 @@ cpdef init_pi_er():
         pi = np.random.dirichlet(np.repeat(1,config.N_CHARS))
         #print pi
     er = np.random.dirichlet(np.repeat(1,config.N_CHARS*(config.N_CHARS-1)/2))
+    #print "Rates"
+    #print er
     return pi, er
 
 #def prior_probs(param, val):
@@ -321,7 +336,7 @@ cpdef get_copy_transition_mat(pi, rates, dict edges_dict,dict transition_mat,tup
     return new_transition_mat
 
 cpdef get_edge_transition_mat(pi, rates, double d, dict transition_mat, tuple change_edge):
-    """Calcualtes new matrix and remembers the old matrix for a branch.
+    """Calculates new matrix and remembers the old matrix for a branch.
     """
     cdef int parent, child
     cdef double x, y
@@ -343,22 +358,11 @@ cpdef get_edge_transition_mat(pi, rates, double d, dict transition_mat, tuple ch
         x = c_exp(-config.NORM_BETA*d)
         y = (1.0-x)/config.N_CHARS
         transition_mat[parent,child] =  ptJC(x, y)
+    elif config.MODEL == "GTR":
+        Q = fnGTR(rates, pi)
+        transition_mat[parent,child] = linalg.expm(Q*d)
 
     return transition_mat
-
-cpdef get_F81_prob(pi, edges_dict, move):
-    cdef p_t = {}
-    cdef double d, x, y
-    cdef int parent, child
-    config.NORM_BETA = 1/(1-np.dot(pi, pi))
-    #print "NORM BETA ", config.NORM_BETA
-    for parent, child in edges_dict:
-        d = edges_dict[parent,child]
-        x = c_exp(-config.NORM_BETA*d)
-        y = 1.0-x
-        #print x, y
-        p_t[parent,child] = move(pi, x, y)
-    return p_t
 
 cpdef par_get_JC_prob(edges_dict, move):
     cdef p_t = {}
@@ -381,26 +385,72 @@ cpdef par_get_JC_prob(edges_dict, move):
     #    p_t[parent,child] = move(x, y)
     return p_t
 
-cpdef get_JC_prob(edges_dict, move):
+cpdef get_prob_t(pi, dict edges_dict, rates, mean_rate):
+    if config.MODEL == "F81":
+        if config.IN_DTYPE == "multi":
+            return get_F81_prob(pi, edges_dict, ptF81, mean_rate)
+        else:
+            return get_F81_prob(pi, edges_dict, binaryptF81, mean_rate)
+    elif config.MODEL == "JC":
+        return get_JC_prob(edges_dict, ptJC, mean_rate)
+    elif config.MODEL == "GTR":
+        return get_GTR_prob(pi, rates, edges_dict, mean_rate)
+
+cpdef get_JC_prob(edges_dict, move, mean_rate):
     cdef p_t = {}
     cdef double d, x, y
     cdef int parent, child
     
     for parent, child in edges_dict:
-        d = edges_dict[parent,child]
+        d = edges_dict[parent,child]*mean_rate
         x = c_exp(-config.NORM_BETA*d)
         y = (1.0-x)/config.N_CHARS
         p_t[parent,child] = move(x, y)
     return p_t
 
-cpdef get_prob_t(pi, dict edges_dict, rates=None):
-    if config.MODEL == "F81":
-        if config.IN_DTYPE == "multi":
-            return get_F81_prob(pi, edges_dict, ptF81)
-        else:
-            return get_F81_prob(pi, edges_dict, binaryptF81)
-    elif config.MODEL == "JC":
-        return get_JC_prob(edges_dict, ptJC)
+cpdef get_F81_prob(pi, edges_dict, move, mean_rate):
+    cdef p_t = {}
+    cdef double d, x, y
+    cdef int parent, child
+    config.NORM_BETA = 1/(1-np.dot(pi, pi))
+    #print "NORM BETA ", config.NORM_BETA
+    for parent, child in edges_dict:
+        d = edges_dict[parent,child]*mean_rate
+        x = c_exp(-config.NORM_BETA*d)
+        y = 1.0-x
+        #print x, y
+        p_t[parent,child] = move(pi, x, y)
+    return p_t
+
+cpdef get_GTR_prob(pi, rates, edges_dict, mean_rate):
+    Q = fnGTR(rates, pi)
+    cdef p_t = {} 
+    for parent, child in edges_dict:
+        p_t[parent,child] = linalg.expm(Q*edges_dict[parent,child]*mean_rate)
+    return p_t
+
+cpdef fnGTR(er, pi):
+    n_states = pi.shape[0]
+    n_rates = er.shape[0]
+    R = np.zeros((n_states, n_states))
+    iu1 = np.triu_indices(n_states,1)
+    #il1 = np.tril_indices(n_states,-1)
+    R[iu1] = er
+    R = R+R.T
+    #R[il1] = er
+
+    Pi = np.diag(pi)
+    Q = np.dot(R,Pi)
+    
+    #X = np.diag(-np.dot(pi,R)/pi)
+    #R = R + X
+
+    Q += np.diag(-np.sum(Q,axis=-1))
+    beta = -1.0/np.dot(pi,np.diag(Q))
+    Q = Q*beta
+    #print("\n")
+    #print(np.dot(pi,Q))
+    return Q
 
 cpdef ptJC(double x, double y):
     """Compute the Probability matrix under a F81 model
@@ -480,10 +530,24 @@ cpdef state_init():
     state["pi"] = pi
     state["rates"] = er
     state["tree"], state["root"] = init_tree()
+    state["srates"] = init_alpha_rate()
     nodes_dict = adjlist2nodes_dict(state["tree"])
     edges_ordered_list = postorder(nodes_dict, state["root"])[::-1]
     state["postorder"] = edges_ordered_list
-    state["transitionMat"] = get_prob_t(state["pi"], state["tree"])
+    site_rates = get_siterates(state["srates"])
+    state["transitionMat"] = []
+    for mean_rate in site_rates:
+        state["transitionMat"].append(get_prob_t(state["pi"], state["tree"], state["rates"], mean_rate))
     return state
+
+
+cpdef get_siterates(float alpha):
+    cutoffs = [chi2.isf(1-p,2*alpha) for p in np.arange(1.0/config.N_CATS,1,1.0/config.N_CATS)]
+    site_rates = [gammainc(alpha+1,cutoffs[0]*alpha)*config.N_CATS]
+    for i in range(1,config.N_CATS-1):
+        site_rates.append((gammainc(alpha+1,cutoffs[i]*alpha)-gammainc(alpha+1,cutoffs[i-1]*alpha))*config.N_CATS)
+    site_rates.append((1.0-gammainc(alpha+1,cutoffs[-1]*alpha))*config.N_CATS)
+    return site_rates
+
 
 
