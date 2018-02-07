@@ -15,7 +15,7 @@ for t1 in trees[int(cutoff*len(trees)):]:
     temp1 = open("temp1.txt", "w")
     temp1.write(t1.replace("_","").replace("-",""))
     temp1.close()
-    a = subprocess.check_output(["/home/taraka/tools/qdist/qdist-2.0/qdist", "temp1.txt", gold_tree])
+    a = subprocess.check_output(["/home/tarakark/tools/qdist/qdist", "temp1.txt", gold_tree])
     x=str(a).split("\\n")[1].split("\\t")
     gqd.append(float(x[4])/float(x[2]))
 gqd = np.array(gqd)
