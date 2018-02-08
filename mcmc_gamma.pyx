@@ -227,7 +227,7 @@ cpdef init_tree():
     return edge_dict, n_nodes
 
 cpdef init_alpha_rate():
-    return random.expovariate(1.0)
+    return random.expovariate(2.0)
     
 cpdef newick2bl(t):
     """Implement a function that can read branch lengths from a newick tree

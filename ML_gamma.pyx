@@ -2,10 +2,10 @@ import numpy as np
 import config
 from cython.parallel import prange
 
-cpdef matML(dict state, list taxa, dict ll_mats):
+cpdef matML1(dict state, list taxa, dict ll_mats):
     LL_mats = []
     LL_mat = {}
-    cdef int root, parent
+    cdef int root, parent, i
     #cdef double[:] p_t, pi
     cdef list edges
     #cdef dict p_t
@@ -14,9 +14,10 @@ cpdef matML(dict state, list taxa, dict ll_mats):
     p_ts = state["transitionMat"]
     pi = state["pi"]
     edges = state["postorder"]
+    ll = np.zeros((config.N_CATS, config.N_SITES))
     ll = np.zeros(config.N_SITES)
 
-    for p_t in p_ts:
+    for i, p_t in enumerate(p_ts):
         LL_mat = {}
         for parent, child in edges:
             if child <= config.N_TAXA:
@@ -28,22 +29,24 @@ cpdef matML(dict state, list taxa, dict ll_mats):
                 if parent not in LL_mat:
                     LL_mat[parent] = p_t[parent,child].dot(LL_mat[child])
                 else:
-                    X = p_t[parent,child].dot(LL_mat[child])
-                    LL_mat[parent] *= X
-                
-        ll += np.dot(pi, LL_mat[root])/config.N_CATS
+                    LL_mat[parent] *= p_t[parent,child].dot(LL_mat[child])
+
+        x = np.dot(pi, LL_mat[root])/config.N_CATS
+        #print(x)
+        ll += np.log(x)
+        #ll[i] = x
         LL_mats.append(LL_mat)
-    LL = np.sum(np.log(ll))
+    LL = np.sum(ll)
     return LL, LL_mats
 
-cpdef matML1(dict state, list taxa, dict ll_mats):
+cpdef matML(dict state, list taxa, dict ll_mats):
     LL_mats = []
     cdef dict LL_mat = {}
     cdef int root, parent, i, child
     #cdef double[:] p_t, pi
     cdef list edges, p_ts
-    cdef double[:] pi
-    #cdef dict p_t
+    #cdef double[:] pi
+    cdef dict p_t
     cdef int n_cats = config.N_CATS
     cdef float LL
     cdef int n_taxa = config.N_TAXA
@@ -52,24 +55,26 @@ cpdef matML1(dict state, list taxa, dict ll_mats):
     p_ts = state["transitionMat"]
     pi = state["pi"]
     edges = state["postorder"]
-    ll = np.zeros((n_cats, config.N_SITES))
+    ll = np.zeros((n_cats,config.N_SITES))
 
-    for i in range(n_cats):
+    for i, p_t in enumerate(p_ts):
         LL_mat = {}
         for parent, child in edges:
             if child <= n_taxa:
                 if parent not in LL_mat:
-                    LL_mat[parent] = p_ts[i][parent,child].dot(ll_mats[child])
+                    #print(p_ts[i])
+                    LL_mat[parent] = p_t[parent,child].dot(ll_mats[child])
                 else:
-                    LL_mat[parent] *= p_ts[i][parent,child].dot(ll_mats[child])
+                    LL_mat[parent] *= p_t[parent,child].dot(ll_mats[child])
             else:
                 if parent not in LL_mat:
-                    LL_mat[parent] = p_ts[i][parent,child].dot(LL_mat[child])
+                    LL_mat[parent] = p_t[parent,child].dot(LL_mat[child])
                 else:
-                    LL_mat[parent] *= p_ts[i][parent,child].dot(LL_mat[child])
-                
-        ll[i] = np.dot(pi, LL_mat[root])/n_cats
-        #LL_mats.append(LL_mat)
+                    LL_mat[parent] *= p_t[parent,child].dot(LL_mat[child])
+        x = np.dot(pi, LL_mat[root])/n_cats
+        #print(x)
+        ll[i] = x
+    #print(ll)
     LL = np.sum(np.log(ll))
     return LL, LL_mats
 
