@@ -1,7 +1,8 @@
 import numpy as np
 import config
+from cython.parallel import prange
 
-cpdef matML(dict state, list taxa, dict ll_mats):
+cpdef matML1(dict state, list taxa, dict ll_mats):
     LL_mats = []
     LL_mat = {}
     cdef int root, parent
@@ -34,6 +35,44 @@ cpdef matML(dict state, list taxa, dict ll_mats):
         LL_mats.append(LL_mat)
     LL = np.sum(np.log(ll))
     return LL, LL_mats
+
+cpdef matML(dict state, list taxa, dict ll_mats):
+    LL_mats = []
+    cdef dict LL_mat = {}
+    cdef int root, parent, i, child
+    #cdef double[:] p_t, pi
+    cdef list edges, p_ts
+    cdef double[:] pi
+    #cdef dict p_t
+    cdef int n_cats = config.N_CATS
+    cdef float LL
+    cdef int n_taxa = config.N_TAXA
+
+    root = state["root"]
+    p_ts = state["transitionMat"]
+    pi = state["pi"]
+    edges = state["postorder"]
+    ll = np.zeros((n_cats, config.N_SITES))
+
+    for i in range(n_cats):
+        LL_mat = {}
+        for parent, child in edges:
+            if child <= n_taxa:
+                if parent not in LL_mat:
+                    LL_mat[parent] = p_ts[i][parent,child].dot(ll_mats[child])
+                else:
+                    LL_mat[parent] *= p_ts[i][parent,child].dot(ll_mats[child])
+            else:
+                if parent not in LL_mat:
+                    LL_mat[parent] = p_ts[i][parent,child].dot(LL_mat[child])
+                else:
+                    LL_mat[parent] *= p_ts[i][parent,child].dot(LL_mat[child])
+                
+        ll[i] = np.dot(pi, LL_mat[root])/n_cats
+        #LL_mats.append(LL_mat)
+    LL = np.sum(np.log(ll))
+    return LL, LL_mats
+
 
 cpdef cache_matML(dict state, list taxa, dict ll_mats, dict cache_LL_Mat, list nodes_recompute):
     cdef dict LL_mat = {}
