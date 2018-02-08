@@ -2,7 +2,7 @@ import numpy as np
 import config
 from cython.parallel import prange
 
-cpdef matML1(dict state, list taxa, dict ll_mats):
+cpdef matML(dict state, list taxa, dict ll_mats):
     LL_mats = []
     LL_mat = {}
     cdef int root, parent
@@ -36,7 +36,7 @@ cpdef matML1(dict state, list taxa, dict ll_mats):
     LL = np.sum(np.log(ll))
     return LL, LL_mats
 
-cpdef matML(dict state, list taxa, dict ll_mats):
+cpdef matML1(dict state, list taxa, dict ll_mats):
     LL_mats = []
     cdef dict LL_mat = {}
     cdef int root, parent, i, child
