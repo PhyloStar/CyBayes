@@ -2,10 +2,10 @@ import numpy as np
 import config
 from cython.parallel import prange
 
-cpdef matML1(dict state, list taxa, dict ll_mats):
+cpdef matML(dict state, list taxa, dict ll_mats):
     LL_mats = []
     LL_mat = {}
-    cdef int root, parent, i
+    cdef int root, parent
     #cdef double[:] p_t, pi
     cdef list edges
     #cdef dict p_t
@@ -17,7 +17,7 @@ cpdef matML1(dict state, list taxa, dict ll_mats):
     ll = np.zeros((config.N_CATS, config.N_SITES))
     ll = np.zeros(config.N_SITES)
 
-    for i, p_t in enumerate(p_ts):
+    for p_t in p_ts:
         LL_mat = {}
         for parent, child in edges:
             if child <= config.N_TAXA:
@@ -31,15 +31,12 @@ cpdef matML1(dict state, list taxa, dict ll_mats):
                 else:
                     LL_mat[parent] *= p_t[parent,child].dot(LL_mat[child])
 
-        x = np.dot(pi, LL_mat[root])/config.N_CATS
-        #print(x)
-        ll += np.log(x)
-        #ll[i] = x
+        ll += np.dot(pi, LL_mat[root])
         LL_mats.append(LL_mat)
-    LL = np.sum(ll)
+    LL = np.sum(np.log(ll/config.N_CATS))
     return LL, LL_mats
 
-cpdef matML(dict state, list taxa, dict ll_mats):
+cpdef matML1(dict state, list taxa, dict ll_mats):
     LL_mats = []
     cdef dict LL_mat = {}
     cdef int root, parent, i, child
