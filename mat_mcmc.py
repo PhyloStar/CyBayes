@@ -63,9 +63,9 @@ elif config.MODEL == "GTR":
     weights = np.array([1, 2, 5, 20], dtype=np.float64)
 elif config.MODEL == "JC":
     params_list = ["bl", "tree"]
-    weights = np.array([5, 5], dtype=np.float64)
+    weights = np.array([50, 5], dtype=np.float64)
 
-tree_move_weights = np.array([5,5], dtype=np.float64)
+tree_move_weights = np.array([5,10], dtype=np.float64)
 bl_move_weights = np.array([10], dtype=np.float64)
 
 weights = weights/np.sum(weights)
