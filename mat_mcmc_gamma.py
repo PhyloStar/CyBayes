@@ -73,7 +73,7 @@ elif config.MODEL == "JC":
     params_list = ["bl", "tree", "srates"]
     weights = np.array([20, 5, 1], dtype=np.float64)
 
-tree_move_weights = np.array([5,10], dtype=np.float64)
+tree_move_weights = np.array([1, 2], dtype=np.float64)
 bl_move_weights = np.array([10], dtype=np.float64)
 
 weights = weights/np.sum(weights)
@@ -85,7 +85,7 @@ accepts_count = defaultdict(int)
 moves_dict = {"pi": [mvDualSlider], "rates": [mvDualSlider], "tree":[rooted_NNI, externalSPR], "bl":[scale_edge], "srates":[scale_alpha]}
 n_accepts = 0.0
 
-params_fileWriter = open(args.output_file+".params","w")
+params_fileWriter = open(args.output_file+".log","w")
 trees_fileWriter = open(args.output_file+".trees","w")
 const_states = ["pi("+idx+")" for idx in config.ALPHABET]
 
@@ -135,8 +135,8 @@ for n_iter in range(1,  config.N_GEN+1):
 
     if move.__name__ == "scale_edge":
         old_edge_p_ts = [p_t[change_edge] for p_t in state["transitionMat"]]
-        #propose_state["transitionMat"] = get_edge_transition_mat(propose_state["pi"], propose_state["rates"], propose_state["tree"][change_edge], state["transitionMat"], change_edge)
-        propose_state["transitionMat"] = [get_prob_t(propose_state["pi"], propose_state["tree"], propose_state["rates"], mean_rate) for mean_rate in site_rates]
+        propose_state["transitionMat"] = [get_edge_transition_mat(propose_state["pi"], propose_state["rates"], propose_state["tree"][change_edge]*mean_rate, state["transitionMat"][imr], change_edge) for imr, mean_rate in enumerate(site_rates)]
+        #propose_state["transitionMat"] = [get_prob_t(propose_state["pi"], propose_state["tree"], propose_state["rates"], mean_rate) for mean_rate in site_rates]
         nodes_recompute = get_path2root(cache_paths_dict, change_edge[1], state["root"])
         proposed_ll, proposed_llMat = cache_matML(propose_state, config.TAXA, config.LEAF_LLMAT, cache_LL_Mats, nodes_recompute)
     else:

@@ -335,6 +335,27 @@ cpdef get_copy_transition_mat(pi, rates, dict edges_dict,dict transition_mat,tup
                 new_transition_mat[parent,child] =  ptJC(x, y)
     return new_transition_mat
 
+cpdef par_get_JC_prob(edges_dict, move):
+    cdef p_t = {}
+    cdef double d, x, y
+    cdef int parent, child
+    
+    p = Pool(2)
+    keys, values= zip(*edges_dict.items())
+    X = np.exp(-config.NORM_BETA*np.array(values))
+    Y = 1.0-X
+    Y /= config.N_CHARS
+    proc_values = p.starmap(ptJC, zip(X,Y),chunksize=50)
+    
+    p_t = dict(zip(keys, proc_values))
+    p.close()
+    #for parent, child in edges_dict:
+    #    d = edges_dict[parent,child]
+    #    x = c_exp(-config.NORM_BETA*d)
+    #    y = (1.0-x)/config.N_CHARS
+    #    p_t[parent,child] = move(x, y)
+    return p_t
+
 cpdef get_edge_transition_mat(pi, rates, double d, dict transition_mat, tuple change_edge):
     """Calculates new matrix and remembers the old matrix for a branch.
     """
@@ -363,27 +384,6 @@ cpdef get_edge_transition_mat(pi, rates, double d, dict transition_mat, tuple ch
         transition_mat[parent,child] = linalg.expm(Q*d)
 
     return transition_mat
-
-cpdef par_get_JC_prob(edges_dict, move):
-    cdef p_t = {}
-    cdef double d, x, y
-    cdef int parent, child
-    
-    p = Pool(2)
-    keys, values= zip(*edges_dict.items())
-    X = np.exp(-config.NORM_BETA*np.array(values))
-    Y = 1.0-X
-    Y /= config.N_CHARS
-    proc_values = p.starmap(ptJC, zip(X,Y),chunksize=50)
-    
-    p_t = dict(zip(keys, proc_values))
-    p.close()
-    #for parent, child in edges_dict:
-    #    d = edges_dict[parent,child]
-    #    x = c_exp(-config.NORM_BETA*d)
-    #    y = (1.0-x)/config.N_CHARS
-    #    p_t[parent,child] = move(x, y)
-    return p_t
 
 cpdef get_prob_t(pi, dict edges_dict, rates, mean_rate):
     if config.MODEL == "F81":

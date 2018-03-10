@@ -57,15 +57,15 @@ print("Initial Likelihood ",init_state["logLikehood"])
 
 if config.MODEL == "F81":
     params_list = ["pi", "bl", "tree"]
-    weights = np.array([1, 5, 5], dtype=np.float64)
+    weights = np.array([1, 20, 5], dtype=np.float64)
 elif config.MODEL == "GTR":
     params_list = ["pi","rates", "tree", "bl"]
     weights = np.array([1, 2, 5, 20], dtype=np.float64)
 elif config.MODEL == "JC":
     params_list = ["bl", "tree"]
-    weights = np.array([50, 5], dtype=np.float64)
+    weights = np.array([10, 5], dtype=np.float64)
 
-tree_move_weights = np.array([5,10], dtype=np.float64)
+tree_move_weights = np.array([1, 2], dtype=np.float64)
 bl_move_weights = np.array([10], dtype=np.float64)
 
 weights = weights/np.sum(weights)
