@@ -63,9 +63,9 @@ elif config.MODEL == "GTR":
     weights = np.array([1, 2, 5, 20], dtype=np.float64)
 elif config.MODEL == "JC":
     params_list = ["bl", "tree"]
-    weights = np.array([10, 5], dtype=np.float64)
+    weights = np.array([10, 1], dtype=np.float64)
 
-tree_move_weights = np.array([1, 2], dtype=np.float64)
+tree_move_weights = np.array([1, 5], dtype=np.float64)
 bl_move_weights = np.array([10], dtype=np.float64)
 
 weights = weights/np.sum(weights)
@@ -77,7 +77,7 @@ accepts_count = defaultdict(int)
 moves_dict = {"pi": [mvDualSlider], "rates": [mvDualSlider], "tree":[rooted_NNI, externalSPR], "bl":[scale_edge]}
 n_accepts = 0.0
 
-params_fileWriter = open(args.output_file+".params","w")
+params_fileWriter = open(args.output_file+".log","w")
 trees_fileWriter = open(args.output_file+".trees","w")
 const_states = ["pi("+idx+")" for idx in config.ALPHABET]
 
