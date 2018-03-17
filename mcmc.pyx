@@ -31,8 +31,7 @@ cpdef get_path2root(dict X, int internal_node, int root):
         paths.append(parent)
         internal_node = parent
         if parent == root:
-            break
-    
+            break    
     return paths
 
 cpdef scale_edge(dict temp_edges_dict):
@@ -56,6 +55,38 @@ cpdef scale_edge(dict temp_edges_dict):
     #prior_ratio = bl_exp_scale*(rand_bl-rand_bl_new)
     
     return temp_edges_dict, log_c, prior_ratio, rand_edge
+    
+cpdef node_slider(dict temp_edges_dict, int root_node):
+    cdef tuple rand_edge
+    cdef double rand_bl, rand_bl_new, log_c, c, prior_ratio
+    
+    nodes_dict = adjlist2reverse_nodes_dict(temp_edges_dict)
+    
+    while(1):
+        rand_edge = random.choice(list(temp_edges_dict))
+        if rand_edge[0] != root_node:
+            break
+    
+    parent_a = nodes_dict[rand_edge[0]]
+    bl_a = temp_edges_dict[parent_a, rand_edge[0]]
+    bl_b = temp_edges_dict[rand_edge]
+    rand_bl = bl_a+bl_b
+
+    log_c = scaler_alpha*(random.random()-0.5)
+    c = c_exp(log_c)
+    rand_bl_new = rand_bl*c
+    
+    temp_edges_dict[parent_a, rand_edge[0]] = rand_bl_new*random.random()
+    temp_edges_dict[rand_edge] = rand_bl_new - temp_edges_dict[parent_a, rand_edge[0]]
+
+    #prior_ratio = expon.logpdf(rand_bl_new, scale=bl_exp_scale) - expon.logpdf(rand_bl, scale=bl_exp_scale)
+    
+    prior_ratio = -(rand_bl_new-rand_bl)/bl_exp_scale
+    
+    #prior_ratio = -math.log(bl_exp_scale*rand_bl_new) + math.log(bl_exp_scale*rand_bl)
+    #prior_ratio = bl_exp_scale*(rand_bl-rand_bl_new)
+    
+    return temp_edges_dict, log_c, prior_ratio, rand_edge, (parent_a, rand_edge[0])
 
 cpdef rooted_NNI(dict temp_edges_list, int root_node):
     """Performs Nearest Neighbor Interchange on a edges list.
@@ -73,7 +104,7 @@ cpdef rooted_NNI(dict temp_edges_list, int root_node):
     shuffle_keys = list(temp_edges_list.keys())
     random.shuffle(shuffle_keys)
     for a, b in shuffle_keys:
-        if b > config.N_TAXA and a != root_node:
+        if b > config.N_TAXA:# and a != root_node:
             x, y = nodes_dict[a], nodes_dict[b]
             break
     #print("selected NNI ", a,b)
@@ -176,7 +207,7 @@ cpdef postorder(dict nodes_dict, int node):
 
 cpdef adjlist2nodes_dict(dict edges_dict):
     """Converts a adjacency list representation to a nodes dictionary
-    which stores the information about neighboring nodes.
+    which stores the information about children nodes.
     """
     cdef tuple edge
     cdef dict nodes_dict = {}
@@ -190,7 +221,7 @@ cpdef adjlist2nodes_dict(dict edges_dict):
 
 cpdef adjlist2reverse_nodes_dict(edges_dict):
     """Converts a adjacency list representation to a nodes dictionary
-    which stores the information about neighboring nodes.
+    which stores the information about parent nodes.
     """
     cdef dict reverse_nodes_dict
     cdef int k
@@ -253,7 +284,7 @@ cpdef newick2bl(t):
                 k, v = elem.split(":")
             k = nodes_stack.pop()
             edges_dict[nodes_stack[-1], k] = float(v)
-    
+    #print(edges_dict)
     return edges_dict, n_nodes
 
 cpdef rtree():
