@@ -35,23 +35,66 @@ cpdef matML(dict state, list taxa, dict ll_mats):
     LL = np.sum(np.log(ll))
     return LL, LL_mats
 
-cpdef cache_matML(dict state, list taxa, dict ll_mats, dict cache_LL_Mat, list nodes_recompute):
+cpdef cache_matML(dict state, list taxa, dict ll_mats, list cache_LL_Mats, list nodes_recompute):
+    LL_mats = []
     cdef dict LL_mat = {}
-    cdef int root, parent
+    cdef int root, parent, i
     #cdef double[:] p_t, pi
     cdef list edges
     #cdef dict p_t
     
     root = state["root"]
-    p_t = state["transitionMat"]
+    p_ts = state["transitionMat"]
     pi = state["pi"]
     edges = state["postorder"]
+    ll = np.zeros(config.N_SITES)
 
-    for parent, child in edges:
-        
-        if parent in nodes_recompute:
-            if child <= config.N_TAXA:
+    for i, p_t in enumerate(p_ts):
+        LL_mat = {}
+        for parent, child in edges:
+            if parent in nodes_recompute:
+                if child <= config.N_TAXA:
+                    if parent not in LL_mat:
+                        LL_mat[parent] = p_t[parent,child].dot(ll_mats[child])
+                    else:
+                        LL_mat[parent] *= p_t[parent,child].dot(ll_mats[child])
+                else:
+                    if parent not in LL_mat:
+                        LL_mat[parent] = p_t[parent,child].dot(LL_mat[child])
+                    else:
+                        LL_mat[parent] *= p_t[parent,child].dot(LL_mat[child])
+            else:
+                LL_mat[parent] = cache_LL_Mats[i][parent]#.copy()
+        ll += np.dot(pi, LL_mat[root])/config.N_CATS
+        LL_mats.append(LL_mat)
+    LL = np.sum(np.log(ll))
+    return LL, LL_mats
+
+
+cpdef matML1(dict state, list taxa, dict ll_mats):
+    LL_mats = []
+    cdef dict LL_mat = {}
+    cdef int root, parent, i, child
+    #cdef double[:] p_t, pi
+    cdef list edges, p_ts
+    #cdef double[:] pi
+    cdef dict p_t
+    cdef int n_cats = config.N_CATS
+    cdef float LL
+    cdef int n_taxa = config.N_TAXA
+
+    root = state["root"]
+    p_ts = state["transitionMat"]
+    pi = state["pi"]
+    edges = state["postorder"]
+    ll = np.zeros((n_cats,config.N_SITES))
+
+    for i, p_t in enumerate(p_ts):
+        LL_mat = {}
+        for parent, child in edges:
+            if child <= n_taxa:
                 if parent not in LL_mat:
+                    #print(p_ts[i])
                     LL_mat[parent] = p_t[parent,child].dot(ll_mats[child])
                 else:
                     LL_mat[parent] *= p_t[parent,child].dot(ll_mats[child])
@@ -60,13 +103,9 @@ cpdef cache_matML(dict state, list taxa, dict ll_mats, dict cache_LL_Mat, list n
                     LL_mat[parent] = p_t[parent,child].dot(LL_mat[child])
                 else:
                     LL_mat[parent] *= p_t[parent,child].dot(LL_mat[child])
-        else:
-            LL_mat[parent] = cache_LL_Mat[parent]#.copy()
-    #print(pi, LL_mat[root])
-    #print(np.sum(np.log(np.dot(pi, LL_mat[root]))))
-    #ll = np.sum(np.log(np.dot(pi, LL_mat[root])))
-    #ll = np.sum(np.log(np.sum(np.dot(pi, LL_mat[root]),axis =0)))
-    ll = np.sum(np.log(np.dot(pi, LL_mat[root])))
-    return ll, LL_mat
-
-
+        x = np.dot(pi, LL_mat[root])/n_cats
+        #print(x)
+        ll[i] = x
+    #print(ll)
+    LL = np.sum(np.log(ll))
+    return LL, LL_mats

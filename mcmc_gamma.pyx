@@ -59,6 +59,38 @@ cpdef scale_edge(dict temp_edges_dict):
     
     return temp_edges_dict, log_c, prior_ratio, rand_edge
 
+cpdef node_slider(dict temp_edges_dict, int root_node):
+    cdef tuple rand_edge
+    cdef double rand_bl, rand_bl_new, log_c, c, prior_ratio
+    
+    nodes_dict = adjlist2reverse_nodes_dict(temp_edges_dict)
+    
+    while(1):
+        rand_edge = random.choice(list(temp_edges_dict))
+        if rand_edge[0] != root_node:
+            break
+    
+    parent_a = nodes_dict[rand_edge[0]]
+    bl_a = temp_edges_dict[parent_a, rand_edge[0]]
+    bl_b = temp_edges_dict[rand_edge]
+    rand_bl = bl_a+bl_b
+
+    log_c = scaler_alpha*(random.random()-0.5)
+    c = c_exp(log_c)
+    rand_bl_new = rand_bl*c
+    
+    temp_edges_dict[parent_a, rand_edge[0]] = rand_bl_new*random.random()
+    temp_edges_dict[rand_edge] = rand_bl_new - temp_edges_dict[parent_a, rand_edge[0]]
+
+    #prior_ratio = expon.logpdf(rand_bl_new, scale=bl_exp_scale) - expon.logpdf(rand_bl, scale=bl_exp_scale)
+    
+    prior_ratio = -(rand_bl_new-rand_bl)/bl_exp_scale
+    
+    #prior_ratio = -math.log(bl_exp_scale*rand_bl_new) + math.log(bl_exp_scale*rand_bl)
+    #prior_ratio = bl_exp_scale*(rand_bl-rand_bl_new)
+    
+    return temp_edges_dict, log_c, prior_ratio, rand_edge, (parent_a, rand_edge[0])
+
 cpdef scale_alpha(float alpha):
     log_c = scaler_alpha*(random.random()-0.5)
     c = c_exp(log_c)
@@ -82,7 +114,7 @@ cpdef rooted_NNI(dict temp_edges_list, int root_node):
     shuffle_keys = list(temp_edges_list.keys())
     random.shuffle(shuffle_keys)
     for a, b in shuffle_keys:
-        if b > config.N_TAXA and a != root_node:
+        if b > config.N_TAXA:# and a != root_node:
             x, y = nodes_dict[a], nodes_dict[b]
             break
     #print("selected NNI ", a,b)
@@ -227,7 +259,7 @@ cpdef init_tree():
     return edge_dict, n_nodes
 
 cpdef init_alpha_rate():
-    return random.expovariate(1.0)
+    return random.expovariate(scaler_alpha)
     
 cpdef newick2bl(t):
     """Implement a function that can read branch lengths from a newick tree
@@ -401,11 +433,11 @@ cpdef get_JC_prob(edges_dict, move, mean_rate):
     cdef double d, x, y
     cdef int parent, child
     
-    for parent, child in edges_dict:
-        d = edges_dict[parent,child]*mean_rate
+    for k, v in edges_dict.items():
+        d = v*mean_rate
         x = c_exp(-config.NORM_BETA*d)
         y = (1.0-x)/config.N_CHARS
-        p_t[parent,child] = move(x, y)
+        p_t[k] = move(x, y)
     return p_t
 
 cpdef get_F81_prob(pi, edges_dict, move, mean_rate):
@@ -414,12 +446,12 @@ cpdef get_F81_prob(pi, edges_dict, move, mean_rate):
     cdef int parent, child
     config.NORM_BETA = 1/(1-np.dot(pi, pi))
     #print "NORM BETA ", config.NORM_BETA
-    for parent, child in edges_dict:
-        d = edges_dict[parent,child]*mean_rate
+    for k, v in edges_dict.items():
+        d = v*mean_rate
         x = c_exp(-config.NORM_BETA*d)
         y = 1.0-x
         #print x, y
-        p_t[parent,child] = move(pi, x, y)
+        p_t[k] = move(pi, x, y)
     return p_t
 
 cpdef get_GTR_prob(pi, rates, edges_dict, mean_rate):
