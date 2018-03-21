@@ -1,21 +1,22 @@
 import numpy as np
 import config
 
-cpdef matML(dict state, list taxa, dict ll_mats):
+#cpdef matML(dict state, list taxa, dict ll_mats):
+cpdef matML(pi, int root, dict ll_mats, list edges, tmats):
     LL_mats = []
     LL_mat = {}
-    cdef int root, parent
+    cdef int parent, child
     #cdef double[:] p_t, pi
-    cdef list edges
+    #cdef list edges
     #cdef dict p_t
     
-    root = state["root"]
-    p_ts = state["transitionMat"]
-    pi = state["pi"]
-    edges = state["postorder"]
+    #root = state["root"]
+    #p_ts = state["transitionMat"]
+    #pi = state["pi"]
+    #edges = state["postorder"]
     ll = np.zeros(config.N_SITES)
 
-    for p_t in p_ts:
+    for p_t in tmats:
         LL_mat = {}
         for parent, child in edges:
             if child <= config.N_TAXA:
@@ -35,21 +36,23 @@ cpdef matML(dict state, list taxa, dict ll_mats):
     LL = np.sum(np.log(ll))
     return LL, LL_mats
 
-cpdef cache_matML(dict state, list taxa, dict ll_mats, list cache_LL_Mats, list nodes_recompute):
+#cpdef cache_matML(dict state, list taxa, dict ll_mats, list cache_LL_Mats, list nodes_recompute):
+cpdef cache_matML(pi, int root, dict ll_mats, list cache_LL_Mats, list nodes_recompute, list edges, tmats):
     LL_mats = []
     cdef dict LL_mat = {}
-    cdef int root, parent, i
+    #cdef int root, parent, i
+    cdef int parent, i
     #cdef double[:] p_t, pi
-    cdef list edges
+    #cdef list edges
     #cdef dict p_t
     
-    root = state["root"]
-    p_ts = state["transitionMat"]
-    pi = state["pi"]
-    edges = state["postorder"]
+    #root = state["root"]
+    #p_ts = state["transitionMat"]
+    #pi = state["pi"]
+    #edges = state["postorder"]
     ll = np.zeros(config.N_SITES)
 
-    for i, p_t in enumerate(p_ts):
+    for i, p_t in enumerate(tmats):
         LL_mat = {}
         for parent, child in edges:
             if parent in nodes_recompute:

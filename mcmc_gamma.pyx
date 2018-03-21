@@ -368,7 +368,7 @@ cpdef get_copy_transition_mat(pi, rates, dict edges_dict,dict transition_mat,tup
                 new_transition_mat[parent,child] =  ptJC(x, y)
     return new_transition_mat
 
-cpdef get_edge_transition_mat(pi, rates, double d, dict transition_mat, tuple change_edge):
+cpdef get_edge_transition_mat(pi, rates, double d):
     """Calculates new matrix and remembers the old matrix for a branch.
     """
     cdef int parent, child
@@ -377,24 +377,27 @@ cpdef get_edge_transition_mat(pi, rates, double d, dict transition_mat, tuple ch
     if config.MODEL == "F81":
         config.NORM_BETA = 1/(1-np.dot(pi, pi))
       
-    parent,child = change_edge
+    #parent,child = change_edge
     
     if config.MODEL == "F81":
         x = c_exp(-config.NORM_BETA*d)
         y = 1.0-x
         if config.IN_DTYPE == "multi":
-            transition_mat[parent,child] = ptF81(pi, x, y)
+            return ptF81(pi, x, y)
+            #transition_mat[parent,child] = ptF81(pi, x, y)
         elif config.IN_DTYPE == "bin":
-            transition_mat[parent,child] = binaryptF81(pi, x, y)
+            return binaryptF81(pi, x, y)
+            #transition_mat[parent,child] = binaryptF81(pi, x, y)
     elif config.MODEL == "JC":
         x = c_exp(-config.NORM_BETA*d)
         y = (1.0-x)/config.N_CHARS
-        transition_mat[parent,child] =  ptJC(x, y)
+        #transition_mat[parent,child] =  ptJC(x, y)
+        return ptJC(x, y)
     elif config.MODEL == "GTR":
         Q = fnGTR(rates, pi)
-        transition_mat[parent,child] = linalg.expm(Q*d)
-
-    return transition_mat
+        #transition_mat[parent,child] = linalg.expm(Q*d)
+        return linalg.expm(Q*d)
+    #return transition_mat
 
 cpdef get_transition_mat_NNI(dict tmat, list nodes_list):
     """Calculates new matrix and remembers the old matrix for a branch.
