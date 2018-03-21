@@ -62,16 +62,16 @@ print("Initial Likelihood ",init_state["logLikehood"])
 
 if config.MODEL == "F81":
     params_list = ["pi", "tree", "bl", "srates"]
-    weights = np.array([1, 3, 4, 1], dtype=np.float64)
+    weights = np.array([0.5, 3, 4, 0.5], dtype=np.float64)
 elif config.MODEL == "GTR":
     params_list = ["pi","rates", "tree", "bl", "srates"]
-    weights = np.array([1, 2, 3, 4, 1], dtype=np.float64)
+    weights = np.array([0.5, 2, 3, 4, 0.5], dtype=np.float64)
 elif config.MODEL == "JC":
     params_list = ["bl", "tree", "srates"]
-    weights = np.array([4, 3, 1], dtype=np.float64)
+    weights = np.array([4, 3, 0.5], dtype=np.float64)
 
 tree_move_weights = np.array([2, 1], dtype=np.float64)
-bl_move_weights = np.array([2, 1], dtype=np.float64)
+bl_move_weights = np.array([3, 0], dtype=np.float64)
 
 weights = weights/np.sum(weights)
 tree_move_weights = tree_move_weights/np.sum(tree_move_weights)
@@ -118,11 +118,10 @@ for n_iter in range(1,  config.N_GEN+1):
         propose_state["tree"] = prop_edges_dict
     elif param_select == "tree":
         if move.__name__ == "rooted_NNI":
-            prop_edges_dict, prop_post_order, hr, nodes_recompute = move(state[param_select].copy(), state["root"])
-            #print(src1, src2, tgt1, tgt2)
+            prop_edges_dict, prop_post_order, hr, nodes_recompute, nodes_list = move(state[param_select].copy(), state["root"])
         else:
             prop_edges_dict, prop_post_order, hr = move(state[param_select].copy(), state["root"])
-        #prop_edges_dict, prop_post_order, hr = move(state[param_select].copy(), state["root"], taxa)
+        #print("Nodes list ", nodes_list)
         propose_state["tree"] = prop_edges_dict
         propose_state["postorder"] = prop_post_order
     elif param_select == "srates":
@@ -131,26 +130,26 @@ for n_iter in range(1,  config.N_GEN+1):
         current_rates = site_rates[:]        
         site_rates = get_siterates(new_param)
         #print(current_rates, site_rates, sep="\n")
-
+    
     if move.__name__ == "scale_edge":
-        old_edge_p_ts = [p_t[change_edge] for p_t in state["transitionMat"]]
-        propose_state["transitionMat"] = [get_edge_transition_mat(propose_state["pi"], propose_state["rates"], propose_state["tree"][change_edge]*mean_rate, state["transitionMat"][imr], change_edge) for imr, mean_rate in enumerate(site_rates)]
+        old_edge_p_ts = [tmat[change_edge] for tmat in state["transitionMat"]]
+        propose_state["transitionMat"] = [get_edge_transition_mat(propose_state["pi"], propose_state["rates"], propose_state["tree"][change_edge]*mean_rate, propose_state["transitionMat"][imr], change_edge) for imr, mean_rate in enumerate(site_rates)]
         #propose_state["transitionMat"] = [get_prob_t(propose_state["pi"], propose_state["tree"], propose_state["rates"], mean_rate) for mean_rate in site_rates]
         nodes_recompute = get_path2root(cache_paths_dict, change_edge[1], state["root"])
         proposed_ll, proposed_llMat = cache_matML(propose_state, config.TAXA, config.LEAF_LLMAT, cache_LL_Mats, nodes_recompute)
     elif move.__name__ == "node_slider":
-        old_edge_p_ts = [p_t[change_edge] for p_t in state["transitionMat"]]
-        old_edge_p_t_as = [p_t[change_parent_edge] for p_t in state["transitionMat"]]
-        propose_state["transitionMat"] = [get_edge_transition_mat(propose_state["pi"], propose_state["rates"], propose_state["tree"][change_edge]*mean_rate, state["transitionMat"][imr], change_edge) for imr, mean_rate in enumerate(site_rates)]
-        propose_state["transitionMat"] = [get_edge_transition_mat(propose_state["pi"], propose_state["rates"], propose_state["tree"][change_parent_edge]*mean_rate, state["transitionMat"][imr], change_parent_edge) for imr, mean_rate in enumerate(site_rates)]
+        old_edge_p_ts = [tmat[change_edge] for tmat in state["transitionMat"]]
+        old_edge_p_t_as = [tmat[change_parent_edge] for tmat in state["transitionMat"]]
+        propose_state["transitionMat"] = [get_edge_transition_mat(propose_state["pi"], propose_state["rates"], propose_state["tree"][change_edge]*mean_rate, propose_state["transitionMat"][imr], change_edge) for imr, mean_rate in enumerate(site_rates)]
+        propose_state["transitionMat"] = [get_edge_transition_mat(propose_state["pi"], propose_state["rates"], propose_state["tree"][change_parent_edge]*mean_rate, propose_state["transitionMat"][imr], change_parent_edge) for imr, mean_rate in enumerate(site_rates)]
         nodes_recompute = get_path2root(cache_paths_dict, change_edge[1], state["root"])
+        proposed_ll, proposed_llMat = cache_matML(propose_state, config.TAXA, config.LEAF_LLMAT, cache_LL_Mats, nodes_recompute)
+    elif move.__name__ == "rooted_NNI":
+        propose_state["transitionMat"] = [get_transition_mat_NNI(tmat, nodes_list) for imr, tmat in enumerate(state["transitionMat"])]
         proposed_ll, proposed_llMat = cache_matML(propose_state, config.TAXA, config.LEAF_LLMAT, cache_LL_Mats, nodes_recompute)
     else:
         propose_state["transitionMat"] = [get_prob_t(propose_state["pi"], propose_state["tree"], propose_state["rates"], mean_rate) for mean_rate in site_rates]
-        if move.__name__ == "rooted_NNI":
-            proposed_ll, proposed_llMat = cache_matML(propose_state, config.TAXA, config.LEAF_LLMAT, cache_LL_Mats, nodes_recompute)
-        else:
-            proposed_ll, proposed_llMat = matML(propose_state, config.TAXA, config.LEAF_LLMAT)
+        proposed_ll, proposed_llMat = matML(propose_state, config.TAXA, config.LEAF_LLMAT)
 
     current_ll = state["logLikehood"]
     ll_ratio = proposed_ll - current_ll + pr_ratio
@@ -171,6 +170,10 @@ for n_iter in range(1,  config.N_GEN+1):
         state["transitionMat"] = propose_state["transitionMat"]
         state["logLikehood"] = proposed_ll
         
+        #if move.__name__ == "rooted_NNI":
+        #    for imr, tmat in enumerate(state["transitionMat"]):
+        #        del tmat[nodes_list[0],nodes_list[2]], tmat[nodes_list[1],nodes_list[3]]
+        
         accepts_count[param_select,move.__name__] += 1
     else:
         if param_select == "srates":
@@ -182,12 +185,15 @@ for n_iter in range(1,  config.N_GEN+1):
             for ip_t, p_t in enumerate(state["transitionMat"]):
                 state["transitionMat"][ip_t][change_edge] = old_edge_p_ts[ip_t]
                 state["transitionMat"][ip_t][change_parent_edge] = old_edge_p_t_as[ip_t]
+        #elif move.__name__ == "rooted_NNI":
+        #    for imr, tmat in enumerate(state["transitionMat"]):
+        #        del tmat[nodes_list[0],nodes_list[3]], tmat[nodes_list[1],nodes_list[2]] 
 
     if n_iter % config.THIN == 0:
         TL = sum(state["tree"].values())
         stationary_freqs = "\t".join([str(state["pi"][idx]) for idx in range(config.N_CHARS)])
         sampled_tree = adjlist2newickBL(state["tree"], adjlist2nodes_dict(state["tree"]), state["root"])+";"
-        print(n_iter, state["logLikehood"], proposed_ll, TL, param_select, move.__name__, sep="\t")
+        print(n_iter, state["logLikehood"], proposed_ll,   TL, param_select, move.__name__, sep="\t")
         print(n_iter, state["logLikehood"], TL, state["srates"], sep="\t", file=params_fileWriter)
         
         #print(n_iter, sampled_tree, state["logLikehood"], sep="\t", file=trees_fileWriter)

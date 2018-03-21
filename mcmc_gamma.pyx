@@ -1,4 +1,4 @@
-import random
+import random, copy
 import numpy as np
 cimport numpy as np
 
@@ -131,7 +131,7 @@ cpdef rooted_NNI(dict temp_edges_list, int root_node):
     new_postorder = postorder(temp_nodes_dict, root_node)[::-1]
     nodes_recompute = [b]+get_path2root(adjlist2reverse_nodes_dict(temp_edges_list), b, root_node)
     
-    return temp_edges_list, new_postorder, hastings_ratio, nodes_recompute
+    return temp_edges_list, new_postorder, hastings_ratio, nodes_recompute, [a,b,src, tgt]
 
 cpdef externalSPR(dict edges_list,int root_node):
     """Performs Subtree-Pruning and Regrafting of an branch connected to terminal leaf
@@ -190,7 +190,8 @@ cpdef mvDualSlider(double[:] pi):
 #    i, j = random.sample(range(config.N_CHARS), 2)
 
     cdef double sum_ij = pi[i]+pi[j]
-    cdef double x = random.uniform(epsilon, sum_ij)
+    #cdef double x = random.uniform(epsilon, sum_ij)
+    cdef double x = sum_ij*random.random()
     cdef double y = sum_ij -x
     pi[i], pi[j] = x, y
         
@@ -381,7 +382,6 @@ cpdef get_edge_transition_mat(pi, rates, double d, dict transition_mat, tuple ch
     if config.MODEL == "F81":
         x = c_exp(-config.NORM_BETA*d)
         y = 1.0-x
-
         if config.IN_DTYPE == "multi":
             transition_mat[parent,child] = ptF81(pi, x, y)
         elif config.IN_DTYPE == "bin":
@@ -395,6 +395,21 @@ cpdef get_edge_transition_mat(pi, rates, double d, dict transition_mat, tuple ch
         transition_mat[parent,child] = linalg.expm(Q*d)
 
     return transition_mat
+
+cpdef get_transition_mat_NNI(dict tmat, list nodes_list):
+    """Calculates new matrix and remembers the old matrix for a branch.
+    """
+    cdef int a, b, src, tgt
+
+    a, b, src, tgt = nodes_list
+    #p_t_a_src, p_t_b_tgt = tmat[a,src], tmat[b,tgt]
+        
+    #tmat[a,tgt], tmat[b,src] = np.copy(tmat[b,tgt], order='K'), np.copy(tmat[a,src], order='K')
+    tmat[a,tgt], tmat[b,src] = copy.deepcopy(tmat[b,tgt]), copy.deepcopy(tmat[a,src])
+    
+    #del tmat[a,src], tmat[b,tgt]
+
+    return tmat        
 
 cpdef par_get_JC_prob(edges_dict, move):
     cdef p_t = {}
