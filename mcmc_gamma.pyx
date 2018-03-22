@@ -260,11 +260,7 @@ cpdef init_tree():
     return edge_dict, n_nodes
 
 cpdef init_alpha_rate():
-<<<<<<< HEAD
-    return random.expovariate(2.0)
-=======
     return random.expovariate(scaler_alpha)
->>>>>>> dev
     
 cpdef newick2bl(t):
     """Implement a function that can read branch lengths from a newick tree
@@ -372,32 +368,8 @@ cpdef get_copy_transition_mat(pi, rates, dict edges_dict,dict transition_mat,tup
                 new_transition_mat[parent,child] =  ptJC(x, y)
     return new_transition_mat
 
-<<<<<<< HEAD
-cpdef par_get_JC_prob(edges_dict, move):
-    cdef p_t = {}
-    cdef double d, x, y
-    cdef int parent, child
-    
-    p = Pool(2)
-    keys, values= zip(*edges_dict.items())
-    X = np.exp(-config.NORM_BETA*np.array(values))
-    Y = 1.0-X
-    Y /= config.N_CHARS
-    proc_values = p.starmap(ptJC, zip(X,Y),chunksize=50)
-    
-    p_t = dict(zip(keys, proc_values))
-    p.close()
-    #for parent, child in edges_dict:
-    #    d = edges_dict[parent,child]
-    #    x = c_exp(-config.NORM_BETA*d)
-    #    y = (1.0-x)/config.N_CHARS
-    #    p_t[parent,child] = move(x, y)
-    return p_t
 
-cpdef get_edge_transition_mat(pi, rates, double d, dict transition_mat, tuple change_edge):
-=======
 cpdef get_edge_transition_mat(double[:] pi, double[:] rates, double d):
->>>>>>> dev
     """Calculates new matrix and remembers the old matrix for a branch.
     """
     cdef int parent, child
@@ -443,9 +415,6 @@ cpdef get_transition_mat_NNI(dict tmat, list nodes_list):
 
     return tmat        
 
-<<<<<<< HEAD
-cpdef get_prob_t(pi, dict edges_dict, rates, mean_rate):
-=======
 cpdef par_get_JC_prob(edges_dict, move):
     cdef p_t = {}
     cdef double d, x, y
@@ -468,7 +437,6 @@ cpdef par_get_JC_prob(edges_dict, move):
     return p_t
 
 cpdef get_prob_t(double[:] pi, dict edges_dict, double[:] rates, double mean_rate):
->>>>>>> dev
     if config.MODEL == "F81":
         if config.IN_DTYPE == "multi":
             return get_F81_prob(pi, edges_dict, ptF81, mean_rate)

@@ -50,16 +50,9 @@ site_rates = get_siterates(init_state["srates"])
 #print(site_rates)
 
 cache_LL_Mats, cache_paths_dict = None, None
-<<<<<<< HEAD
-
-init_state["logLikehood"], cache_LL_Mats = matML(init_state, config.TAXA, config.LEAF_LLMAT)
-
-#print(cache_LL_Mats)
-=======
 #init_state["logLikehood"], cache_LL_Mats = matML(init_state, config.TAXA, config.LEAF_LLMAT)
 
 init_state["logLikehood"], cache_LL_Mats = matML(init_state["pi"], init_state["root"], config.LEAF_LLMAT, init_state["postorder"], init_state["transitionMat"], config.N_SITES, config.N_TAXA, config.N_CATS)
->>>>>>> dev
 
 state = init_state.copy()
 init_tree = adjlist2newickBL(state["tree"], adjlist2nodes_dict(state["tree"]), state["root"])+";"
@@ -77,17 +70,10 @@ elif config.MODEL == "GTR":
     weights = np.array([0.5, 0.5, 3, 4, 0.5], dtype=np.float64)
 elif config.MODEL == "JC":
     params_list = ["bl", "tree", "srates"]
-<<<<<<< HEAD
-    weights = np.array([20, 5, 1], dtype=np.float64)
-
-tree_move_weights = np.array([1, 2], dtype=np.float64)
-bl_move_weights = np.array([10], dtype=np.float64)
-=======
     weights = np.array([4, 3, 0.5], dtype=np.float64)
 
 tree_move_weights = np.array([4, 1], dtype=np.float64)
 bl_move_weights = np.array([3, 1], dtype=np.float64)
->>>>>>> dev
 
 weights = weights/np.sum(weights)
 tree_move_weights = tree_move_weights/np.sum(tree_move_weights)
@@ -185,19 +171,6 @@ for n_iter in range(1,  config.N_GEN+1):
     #prop_tmats = [get_prob_t(propose_state["pi"], propose_state["tree"], propose_state["rates"], mean_rate) for mean_rate in site_rates]
     #proposed_ll, proposed_llMat = matML(propose_state["pi"],  state["root"], config.LEAF_LLMAT, propose_state["postorder"], prop_tmats)
 
-<<<<<<< HEAD
-    if move.__name__ == "scale_edge":
-        old_edge_p_ts = [p_t[change_edge] for p_t in state["transitionMat"]]
-        propose_state["transitionMat"] = [get_edge_transition_mat(propose_state["pi"], propose_state["rates"], propose_state["tree"][change_edge]*mean_rate, state["transitionMat"][imr], change_edge) for imr, mean_rate in enumerate(site_rates)]
-        #propose_state["transitionMat"] = [get_prob_t(propose_state["pi"], propose_state["tree"], propose_state["rates"], mean_rate) for mean_rate in site_rates]
-        nodes_recompute = get_path2root(cache_paths_dict, change_edge[1], state["root"])
-        proposed_ll, proposed_llMat = cache_matML(propose_state, config.TAXA, config.LEAF_LLMAT, cache_LL_Mats, nodes_recompute)
-    else:
-        propose_state["transitionMat"] = [get_prob_t(propose_state["pi"], propose_state["tree"], propose_state["rates"], mean_rate) for mean_rate in site_rates]
-        proposed_ll, proposed_llMat = matML(propose_state, config.TAXA, config.LEAF_LLMAT)
-=======
->>>>>>> dev
-
     current_ll = state["logLikehood"]
     ll_ratio = proposed_ll - current_ll + pr_ratio
     ll_ratio += hr
@@ -209,10 +182,6 @@ for n_iter in range(1,  config.N_GEN+1):
             state[param_select] = prop_edges_dict#propose_state[param_select]
             state["postorder"] = prop_post_order
             cache_paths_dict = adjlist2reverse_nodes_dict(state[param_select])
-<<<<<<< HEAD
-            cache_LL_Mats = proposed_llMat
-=======
->>>>>>> dev
         else:
             state[param_select] = new_param#propose_state[param_select]
 
@@ -235,11 +204,6 @@ for n_iter in range(1,  config.N_GEN+1):
         elif move.__name__ == "scale_edge":
             for ip_t, p_t in enumerate(state["transitionMat"]):
                 state["transitionMat"][ip_t][change_edge] = old_edge_p_ts[ip_t]
-<<<<<<< HEAD
-    
-        #TL = sum(state["tree"].values())
-        #print(n_iter, state["logLikehood"], proposed_ll, current_ll,TL, param_select, move.__name__, sep="\t", flush=True)
-=======
         elif move.__name__ == "node_slider":
             for ip_t, p_t in enumerate(state["transitionMat"]):
                 state["transitionMat"][ip_t][change_edge] = old_edge_p_ts[ip_t]
@@ -247,7 +211,6 @@ for n_iter in range(1,  config.N_GEN+1):
         elif move.__name__ == "rooted_NNI":
             for ip_t, p_t in enumerate(state["transitionMat"]):
                 del state["transitionMat"][ip_t][nodes_list[0],nodes_list[3]], state["transitionMat"][ip_t][nodes_list[1],nodes_list[2]] 
->>>>>>> dev
 
     if n_iter % config.THIN == 0:
         TL = sum(state["tree"].values())
