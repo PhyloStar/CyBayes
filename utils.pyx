@@ -106,7 +106,7 @@ cpdef sites2Mat(dict sites, int n_chars, list alphabet, list taxa_list):
     cdef dict LL_MAT = {}
     for k, v in ll_mat.items():
         k_idx = taxa_list.index(k)+1
-        LL_MAT[k_idx] = np.array(v,order="F").T#np.ascontiguousarray(np.array(v).T, dtype=np.float32)
+        LL_MAT[k_idx] = np.array(v, order="F").T#np.ascontiguousarray(np.array(v).T, dtype=np.float32)
         #ll_mat[k] = np.array(v).T
         #print(k, np.array(v))
         #print(ll_mat[k].flags)

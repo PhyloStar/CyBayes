@@ -317,8 +317,8 @@ cpdef rtree():
     return "".join(taxa_list)
 
 cpdef init_pi_er():
-    #cdef double[:] pi
-    #cdef double[:,:] er
+    cdef double[:] pi, er
+    #cdef double[:] er
     #print config.N_CHARS
     
     if config.MODEL == "JC":
@@ -368,7 +368,7 @@ cpdef get_copy_transition_mat(pi, rates, dict edges_dict,dict transition_mat,tup
                 new_transition_mat[parent,child] =  ptJC(x, y)
     return new_transition_mat
 
-cpdef get_edge_transition_mat(pi, rates, double d):
+cpdef get_edge_transition_mat(double[:] pi, double[:] rates, double d):
     """Calculates new matrix and remembers the old matrix for a branch.
     """
     cdef int parent, child
@@ -435,7 +435,7 @@ cpdef par_get_JC_prob(edges_dict, move):
     #    p_t[parent,child] = move(x, y)
     return p_t
 
-cpdef get_prob_t(pi, dict edges_dict, rates, mean_rate):
+cpdef get_prob_t(double[:] pi, dict edges_dict, double[:] rates, double mean_rate):
     if config.MODEL == "F81":
         if config.IN_DTYPE == "multi":
             return get_F81_prob(pi, edges_dict, ptF81, mean_rate)
@@ -446,10 +446,10 @@ cpdef get_prob_t(pi, dict edges_dict, rates, mean_rate):
     elif config.MODEL == "GTR":
         return get_GTR_prob(pi, rates, edges_dict, mean_rate)
 
-cpdef get_JC_prob(edges_dict, move, mean_rate):
-    cdef p_t = {}
-    cdef double d, x, y
-    cdef int parent, child
+cpdef get_JC_prob(dict edges_dict, move, double mean_rate):
+    cdef dict p_t = {}
+    cdef double d, x, y, v
+    cdef tuple k
     
     for k, v in edges_dict.items():
         d = v*mean_rate
@@ -458,10 +458,11 @@ cpdef get_JC_prob(edges_dict, move, mean_rate):
         p_t[k] = move(x, y)
     return p_t
 
-cpdef get_F81_prob(pi, edges_dict, move, mean_rate):
-    cdef p_t = {}
-    cdef double d, x, y
-    cdef int parent, child
+cpdef get_F81_prob(double[:] pi, dict edges_dict, move, double mean_rate):
+    cdef dict p_t = {}
+    cdef double d, x, y, v
+    cdef tuple k
+    #cdef int parent, child
     config.NORM_BETA = 1/(1-np.dot(pi, pi))
     #print "NORM BETA ", config.NORM_BETA
     for k, v in edges_dict.items():
@@ -505,16 +506,16 @@ cpdef fnGTR(er, pi):
 cpdef ptJC(double x, double y):
     """Compute the Probability matrix under a F81 model
     """
-    cdef np.ndarray p_t
+    cdef np.ndarray[double, ndim=2] p_t
     p_t = np.empty((config.N_CHARS, config.N_CHARS))
     p_t.fill(y)
     np.fill_diagonal(p_t, x+y)
     return p_t
 
-cpdef binaryptF81(pi, double x, double y):
+cpdef binaryptF81(double[:] pi, double x, double y):
     """Compute the probability matrix for binary characters
     """
-    cdef np.ndarray p_t
+    cdef np.ndarray[double, ndim=2] p_t
     p_t = np.empty((2,2))
     p_t[0, 0] = pi[0]+pi[1]*x
     p_t[0, 1] = pi[1]*y
@@ -522,10 +523,10 @@ cpdef binaryptF81(pi, double x, double y):
     p_t[1, 1] = pi[1]+pi[0]*x
     return p_t
 
-cpdef ptF81(pi, double x, double y):
+cpdef ptF81(double[:] pi, double x, double y):
     """Compute the Probability matrix under a F81 model
     """
-    cdef np.ndarray p_t
+    cdef np.ndarray[double, ndim=2] p_t
     #print pi, x, y
     p_t = np.empty((config.N_CHARS, config.N_CHARS))
     cdef int i, j

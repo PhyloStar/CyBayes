@@ -52,7 +52,7 @@ site_rates = get_siterates(init_state["srates"])
 cache_LL_Mats, cache_paths_dict = None, None
 #init_state["logLikehood"], cache_LL_Mats = matML(init_state, config.TAXA, config.LEAF_LLMAT)
 
-init_state["logLikehood"], cache_LL_Mats = matML(init_state["pi"], init_state["root"], config.LEAF_LLMAT, init_state["postorder"], init_state["transitionMat"])
+init_state["logLikehood"], cache_LL_Mats = matML(init_state["pi"], init_state["root"], config.LEAF_LLMAT, init_state["postorder"], init_state["transitionMat"], config.N_SITES, config.N_TAXA, config.N_CATS)
 
 state = init_state.copy()
 init_tree = adjlist2newickBL(state["tree"], adjlist2nodes_dict(state["tree"]), state["root"])+";"
@@ -146,7 +146,7 @@ for n_iter in range(1,  config.N_GEN+1):
             old_edge_p_ts.append(state["transitionMat"][imr][change_edge].copy())
             state["transitionMat"][imr][change_edge] = get_edge_transition_mat(propose_state["pi"], propose_state["rates"], propose_state["tree"][change_edge]*mean_rate)
 
-        proposed_ll, proposed_llMat = cache_matML(propose_state["pi"], state["root"], config.LEAF_LLMAT, cache_LL_Mats, nodes_recompute, state["postorder"], state["transitionMat"])
+        proposed_ll, proposed_llMat = cache_matML(propose_state["pi"], state["root"], config.LEAF_LLMAT, cache_LL_Mats, nodes_recompute, state["postorder"], state["transitionMat"], config.N_SITES, config.N_TAXA, config.N_CATS)
 
     elif move.__name__ == "node_slider":
         for imr, mean_rate in enumerate(site_rates):
@@ -156,20 +156,20 @@ for n_iter in range(1,  config.N_GEN+1):
             state["transitionMat"][imr][change_edge] = get_edge_transition_mat(propose_state["pi"], propose_state["rates"], propose_state["tree"][change_edge]*mean_rate)
             state["transitionMat"][imr][change_parent_edge] = get_edge_transition_mat(propose_state["pi"], propose_state["rates"], propose_state["tree"][change_parent_edge]*mean_rate)
 
-        proposed_ll, proposed_llMat = cache_matML(propose_state["pi"], state["root"], config.LEAF_LLMAT, cache_LL_Mats, nodes_recompute, state["postorder"], state["transitionMat"])
+        proposed_ll, proposed_llMat = cache_matML(propose_state["pi"], state["root"], config.LEAF_LLMAT, cache_LL_Mats, nodes_recompute, state["postorder"], state["transitionMat"], config.N_SITES, config.N_TAXA, config.N_CATS)
 
     elif move.__name__ == "rooted_NNI":
         for imr, mean_rate in enumerate(site_rates):
             state["transitionMat"][imr][nodes_list[0],nodes_list[3]], state["transitionMat"][imr][nodes_list[1],nodes_list[2]] = state["transitionMat"][imr][nodes_list[1],nodes_list[3]].copy(), state["transitionMat"][imr][nodes_list[0],nodes_list[2]].copy()
 
-        proposed_ll, proposed_llMat = cache_matML(propose_state["pi"], state["root"], config.LEAF_LLMAT, cache_LL_Mats, nodes_recompute, propose_state["postorder"], state["transitionMat"])
+        proposed_ll, proposed_llMat = cache_matML(propose_state["pi"], state["root"], config.LEAF_LLMAT, cache_LL_Mats, nodes_recompute, propose_state["postorder"], state["transitionMat"], config.N_SITES, config.N_TAXA, config.N_CATS)
 
     else:
         prop_tmats = [get_prob_t(propose_state["pi"], propose_state["tree"], propose_state["rates"], mean_rate) for mean_rate in site_rates]
-        proposed_ll, proposed_llMat = matML(propose_state["pi"],  state["root"], config.LEAF_LLMAT, propose_state["postorder"], prop_tmats)
+        proposed_ll, proposed_llMat = matML(propose_state["pi"],  state["root"], config.LEAF_LLMAT, propose_state["postorder"], prop_tmats, config.N_SITES, config.N_TAXA, config.N_CATS)
 
-    prop_tmats = [get_prob_t(propose_state["pi"], propose_state["tree"], propose_state["rates"], mean_rate) for mean_rate in site_rates]
-    proposed_ll, proposed_llMat = matML(propose_state["pi"],  state["root"], config.LEAF_LLMAT, propose_state["postorder"], prop_tmats)
+    #prop_tmats = [get_prob_t(propose_state["pi"], propose_state["tree"], propose_state["rates"], mean_rate) for mean_rate in site_rates]
+    #proposed_ll, proposed_llMat = matML(propose_state["pi"],  state["root"], config.LEAF_LLMAT, propose_state["postorder"], prop_tmats)
 
 
     current_ll = state["logLikehood"]
