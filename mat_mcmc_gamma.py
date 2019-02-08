@@ -19,7 +19,7 @@ args = parser.parse_args()
 
 if args.data_type == "bin":
     config.N_TAXA, config.N_CHARS, config.ALPHABET, site_dict, config.LEAF_LLMAT, config.TAXA, config.N_SITES = utils.readBinaryPhy(args.input_file)
-    print(config.N_TAXA)
+
 elif args.data_type == "multi":
     config.N_TAXA, config.N_CHARS, config.ALPHABET, site_dict, config.LEAF_LLMAT, config.TAXA, config.N_SITES = utils.readMultiPhy(args.input_file)
 
