@@ -11,7 +11,10 @@ ntaxa, nchars = 0, 0
 
 for line in open(inname, "r"):
     line = line.strip("\n")
-    if line[-1] == ";" or "matrix" in line: continue
+    if len(line) < 1: continue
+    if line[-1] == ";" or "matrix" in line.lower() or line.startswith("#"): continue
+    if line == "END;": break
+#    print(line)
     arr = line.split()
     if len(arr) > 2:
         print("Whitespace character in taxa name ", file=sys.stderr)
