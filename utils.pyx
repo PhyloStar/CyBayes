@@ -36,6 +36,60 @@ cpdef readBinaryPhy(str fname):
     #print(ll_mats)
     return n_leaves, n_chars, alphabet, site_dict, ll_mats,taxa_list, n_sites
 
+cpdef readCognatePhy(str fname):
+    ll_mats_list, alphabet, taxa_list, n_leaves = [], [], [], 0
+
+    f = open(fname)
+
+    site_dict, sites_dict_list, cogset_taxa_list = {}, [], []
+    
+    for line in f:
+        if line == "\n":
+            sites_dict_list.append(site_dict)
+            site_dict = {}
+            continue
+#        print(line)
+        taxa, char_vector = line.strip().split("\t")
+        taxa = taxa.replace(" ","")
+
+        for ch in char_vector:
+            if ch not in alphabet and ch not in ["?", "-"]:
+                alphabet.append(ch)
+        site_dict[taxa] = list(char_vector)
+
+        if taxa not in taxa_list:
+            taxa_list.append(taxa)
+
+    n_chars = len(alphabet)
+
+    taxa_list = sorted(taxa_list)
+
+    for i in range(0, len(sites_dict_list)):
+        site_dict = sites_dict_list[i]
+
+        tax_list = list(site_dict.keys())
+
+        if len(tax_list) > 1:
+            ncols = len(list(site_dict.values())[0])
+
+            cogset_taxa_list.append([taxa_list.index(k)+1 for k in tax_list])
+            sd = {}
+            for lang in taxa_list:
+                if lang not in site_dict:
+                    gap_row = ["?"]*ncols
+                    sd[lang] = gap_row
+                else:
+                    sd[lang] = site_dict[lang]
+                
+            ll_mats = sites2Mat(sd, n_chars, alphabet, taxa_list)
+            ll_mats_list.append(ll_mats) 
+
+    f.close()    
+
+    n_leaves = len(taxa_list)
+    return n_leaves, n_chars, alphabet, ll_mats_list, taxa_list, cogset_taxa_list
+    
+
 def readPhy(fname):
     site_dict = {}#defaultdict()
     alphabet, taxa_list = [], []

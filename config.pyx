@@ -9,7 +9,7 @@ N_TAXA = 0
 N_SITES = 0
 N_GEN = 0
 THIN = 0
-N_CATS = 4
+N_CATS = 2
 
 ALPHABET = []
 TAXA = []
@@ -17,6 +17,7 @@ TAXA = []
 NORM_BETA = 0.0
 
 LEAF_LLMAT = {}
+LEAF_LLMAT_LIST = []
 
 MODEL = ""
 IN_DTYPE = ""

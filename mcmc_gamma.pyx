@@ -259,8 +259,6 @@ cpdef init_tree():
     
     return edge_dict, n_nodes
 
-cpdef init_alpha_rate():
-    return random.expovariate(scaler_alpha)
     
 cpdef newick2bl(t):
     """Implement a function that can read branch lengths from a newick tree
@@ -325,8 +323,10 @@ cpdef init_pi_er():
         pi = np.repeat(1.0/config.N_CHARS, config.N_CHARS)
     elif config.MODEL in ["F81", "GTR"]:
         pi = np.random.dirichlet(np.repeat(1,config.N_CHARS))
+#        print(pi)
         #print pi
     er = np.random.dirichlet(np.repeat(1,config.N_CHARS*(config.N_CHARS-1)/2))
+#    print(er)
     #print "Rates"
     #print er
     return pi, er
@@ -531,6 +531,7 @@ cpdef ptF81(double[:] pi, double x, double y):
     #print pi, x, y
     p_t = np.empty((config.N_CHARS, config.N_CHARS))
     cdef int i, j
+
     for i in range(config.N_CHARS):
         for j in range(config.N_CHARS):
             if i==j:
@@ -570,6 +571,9 @@ cpdef adjlist2newickBL(dict edges_list, dict nodes_dict, int node):
     #print(tree_list)
     return "("+", ".join(map(str, tree_list))+")"
 
+cpdef init_alpha_rate():
+    return random.expovariate(scaler_alpha)
+
 cpdef state_init():
     cdef dict state = {}
     cdef dict nodes_dict
@@ -582,14 +586,19 @@ cpdef state_init():
     state["pi"] = pi
     state["rates"] = er
     state["tree"], state["root"] = init_tree()
-    state["srates"] = init_alpha_rate()
+
     nodes_dict = adjlist2nodes_dict(state["tree"])
     edges_ordered_list = postorder(nodes_dict, state["root"])[::-1]
     state["postorder"] = edges_ordered_list
-    site_rates = get_siterates(state["srates"])
     state["transitionMat"] = []
-    for mean_rate in site_rates:
-        state["transitionMat"].append(get_prob_t(state["pi"], state["tree"], state["rates"], mean_rate))
+    if config.N_CATS > 1:
+        state["srates"] = init_alpha_rate()
+        site_rates = get_siterates(state["srates"])        
+        for mean_rate in site_rates:
+            state["transitionMat"].append(get_prob_t(state["pi"], state["tree"], state["rates"], mean_rate))
+    elif config.N_CATS == 1:
+        state["srates"] = [1.0]
+        state["transitionMat"] = [get_prob_t(state["pi"], state["tree"], state["rates"], 1.0)]
     return state
 
 
@@ -600,6 +609,4 @@ cpdef get_siterates(float alpha):
         site_rates.append((gammainc(alpha+1,cutoffs[i]*alpha)-gammainc(alpha+1,cutoffs[i-1]*alpha))*config.N_CATS)
     site_rates.append((1.0-gammainc(alpha+1,cutoffs[-1]*alpha))*config.N_CATS)
     return site_rates
-
-
 
