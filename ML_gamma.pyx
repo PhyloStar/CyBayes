@@ -37,91 +37,56 @@ cpdef matML(double[:] pi, int root, dict ll_mats, list edges, list tmats, int n_
                     #LL_mat[parent] *= X
                     LL_mat[parent] *= p_t[parent,child].dot(LL_mat[child])
 
-            print(parent, LL_mat[parent])
+#            print(parent, LL_mat[parent])
         
-        print("PI shape ", pi.shape, LL_mat[root].shape)
+#        print("PI shape ", pi.shape, LL_mat[root].shape)
         
         ll += np.dot(pi, LL_mat[root])/n_cats
-        print("Log Likelihood ", np.asarray(ll).shape)
+#        print("Log Likelihood ", np.asarray(ll).shape)
         LL_mats.append(LL_mat)
     LL = np.sum(np.log(ll))
     #print(LL_mats[-1])
     return LL, LL_mats
 
-cpdef cognateMatML1(double[:] pi, int root, list ll_mats_list, list edges, list tmats, float n_cats, list mrca_list):
-    # Weighs the likelihood of each alignment using Gamma site rates.
-#    cdef list LL_mats
-    cdef dict LL_mat
-    cdef int parent, child
-    cdef dict p_t
-    cdef int i, mrca
-    cdef float LL 
-    cdef float LL_root
 
-    cdef double [:] ll
-#    LL_mats  = []
 
-    i, LL, LL_root = 0, 0.0, 0.0
-
-    for ll_mats in ll_mats_list:
-#        cogs_taxa_list = cogset_taxa_list[i]
-#        n_leaves = len(cogs_taxa_list)
-
-        ll = np.zeros(ll_mats[1].shape[1])
-        ll_root = np.zeros(ll_mats[1].shape[1])
-        mrca = mrca_list[i]
-
-        for p_t in tmats:
-            LL_mat = {}
-            for parent, child in edges:
-                
-                if child <= config.N_TAXA:
-                    if parent not in LL_mat:
-                        LL_mat[parent] = p_t[parent,child].dot(ll_mats[child])
-                    else:
-                        LL_mat[parent] *= p_t[parent,child].dot(ll_mats[child])
-                else:
-                    if parent not in LL_mat:
-                        LL_mat[parent] = p_t[parent,child].dot(LL_mat[child])
-                    else:
-                        LL_mat[parent] *= p_t[parent,child].dot(LL_mat[child])
-
-                if parent == mrca: break #break out of loop after computing the likelihood at the mrca
-            
-            ll += np.dot(pi, LL_mat[mrca])/n_cats
-#            ll_root += np.dot(pi, LL_mat[root])/n_cats
-            
-        i += 1
-        temp_ll = np.sum(np.log(ll))
-        LL += temp_ll
-
-    return LL
-
-cpdef cognateMatML2(double[:] pi, int root, list ll_mats_list, list edges, list tmats, float n_cats, list mrca_list):
+cpdef cognateMatML2(double[:] pi, int root, list ll_mats_list, list edges, list tmats, int n_cats, list mrca_list):
     #weighs the likelihood of each meaning by a gamma site rate
     cdef dict LL_mat
     cdef int parent, child
     cdef dict p_t
-    cdef int i, mrca, mrca_flag
-    cdef float LL 
-    cdef float LL_root
+    cdef int i, mrca, mrca_flag, j, k
+    cdef double LL 
+    cdef double LL_root, mrca_ll
+    cdef dict cache_LL_Mats = {}
+    cdef int n_cog_sets = len(ll_mats_list)
 
-    cdef double [:] ll_root_mrca = np.zeros(len(ll_mats_list))
-    cdef double [:] ll_root = np.zeros(len(ll_mats_list))
-    cdef double [:] ll_mrca = np.zeros(len(ll_mats_list))
+#    cdef double [:] ll_root_mrca = np.zeros(len(ll_mats_list))
+#    cdef double [:] ll_root = np.zeros(len(ll_mats_list))
+    cdef double [:] ll_mrca = np.zeros(n_cog_sets)
+    
+    cdef dict ll_mats
 
     LL = 0.0
-    for p_t in tmats:
-        i, LL_root = 0, 0.0
+    for k in range(n_cats):
+#    for p_t in tmats:
+        p_t = tmats[k]
+#        i, LL_root, j = 0, 0.0, 0
         
-        for i in range(len(ll_mats_list)):
+#        for ll_mats in ll_mats_list:
+        for i in range(n_cog_sets):
+#            ll_mats = config.LEAF_LLMAT_LIST[i]
             ll_mats = ll_mats_list[i]
             mrca = mrca_list[i]
 
             LL_mat = {}
             mrca_flag = -1
 
-            for parent, child in edges:                    
+#            for j in range(config.N_BRANCHES):
+#                parent = edges[j][0]
+#                child = edges[j][1]
+
+            for parent, child in edges:
                 if child <= config.N_TAXA:
                     if parent not in LL_mat:
                         LL_mat[parent] = p_t[parent,child].dot(ll_mats[child])
@@ -137,40 +102,85 @@ cpdef cognateMatML2(double[:] pi, int root, list ll_mats_list, list edges, list 
 
                 if mrca_flag > 0 and parent == mrca:
                     mrca_ll =  np.sum(np.log(np.dot(pi, LL_mat[mrca])/n_cats))
-#                    print("parent = {}, mrca_ll = {}".format(parent, mrca_ll))
                     ll_mrca[i] += mrca_ll
+                    cache_LL_Mats[k,i] = LL_mat
                     break
-
-
-#            temp_root = np.sum(np.log(np.dot(pi, LL_mat[mrca]))) #mrca likelihood codeblock
-
-#            print("cognate set = {}, mrca = {}, root = {}".format(i, mrca, root))
-#            ll_root_mrca[i] += np.sum(np.log(np.dot(pi, LL_mat[mrca])/n_cats))
-#            ll_root[i] += np.sum(np.log(np.dot(pi, LL_mat[root])/n_cats))
-
-            i += 1
-#    print("LL_mrca = {}, LL_root_mrca = {}, LL_root = {}".format(np.asarray(ll_mrca), np.asarray(ll_root_mrca), np.asarray(ll_root)))
-#    print("LL_mrca = {}, LL_root_mrca = {}, LL_root = {}".format(np.sum(ll_mrca), np.sum(ll_root_mrca), np.sum(ll_root)))
-
-#    LL = np.sum(ll_root)
     LL = np.sum(ll_mrca)
 
-    return LL
+    return LL, cache_LL_Mats
 
-cpdef cacheCognateMatML2(double[:] pi, int root, dict ll_mats, list cache_LL_Mats, list nodes_recompute, list edges, list tmats, int n_sites, int n_taxa, int n_cats):
-    cdef list LL_mats = []
-    cdef dict LL_mat
-    cdef int parent, i, child
 
+cpdef cacheCognateMatML2(double[:] pi, int root, list ll_mats_list, dict cache_LL_Mats, list nodes_recompute, list edges, list tmats, int n_cats, list mrca_list):
+    cdef dict LL_mats = {}
+    cdef dict LL_mat, ll_mats
+    cdef int parent, i, child, mrca
     cdef dict p_t
-    
-    cdef double [:] ll = np.zeros(n_sites)
 
-    for i, p_t in enumerate(tmats):
-        LL_mat = {}
-        for parent, child in edges:
-            if parent in nodes_recompute:
-                if child <= n_taxa:
+    cdef int n_cog_sets = len(ll_mats_list)
+
+    cdef double [:] ll_mrca = np.zeros(n_cog_sets)
+
+    for k in range(n_cats):
+        p_t = tmats[k]
+        for i in range(n_cog_sets):
+            ll_mats = ll_mats_list[i]
+            mrca = mrca_list[i]
+
+            LL_mat = {}
+            mrca_flag = -1
+
+            for parent, child in edges:
+                if parent in nodes_recompute:
+                    if child <= config.N_TAXA:
+                        if parent not in LL_mat:
+                            LL_mat[parent] = p_t[parent,child].dot(ll_mats[child])
+                        else:
+                            LL_mat[parent] *= p_t[parent,child].dot(ll_mats[child])
+                    else:
+                        if parent not in LL_mat:
+                            LL_mat[parent] = p_t[parent,child].dot(LL_mat[child])
+                        else:
+                            LL_mat[parent] *= p_t[parent,child].dot(LL_mat[child])
+                else:
+                    LL_mat[parent] = cache_LL_Mats[k,i][parent]
+
+                if parent == mrca: mrca_flag += 1
+
+                if mrca_flag > 0 and parent == mrca:
+                    mrca_ll =  np.sum(np.log(np.dot(pi, LL_mat[mrca])/n_cats))
+                    ll_mrca[i] += mrca_ll
+                    LL_mats[k,i] = LL_mat
+#                    cache_LL_Mats[k,i] = LL_mat
+                    break
+    LL = np.sum(ll_mrca)
+
+    return LL, LL_mats
+
+cpdef cognateMatML1(double[:] pi, int root, list ll_mats_list, list edges, list tmats, float n_cats, list mrca_list):
+    # Weighs the likelihood of each alignment using Gamma site rates.
+#    cdef list LL_mats
+    cdef dict LL_mat
+    cdef int parent, child
+    cdef dict p_t
+    cdef int i, mrca
+    cdef double[:] ll_cogclass
+    cdef double LL = 0.0
+
+    cdef double [:] ll = np.zeros(len(ll_mats_list))
+
+    i = 0
+
+    for ll_mats in ll_mats_list:
+
+        ll_cogclass = np.zeros(ll_mats[1].shape[1])
+        mrca = mrca_list[i]
+        mrca_flag = -1
+
+        for p_t in tmats:
+            LL_mat = {}
+
+            for parent, child in edges:
+                if child <= config.N_TAXA:
                     if parent not in LL_mat:
                         LL_mat[parent] = p_t[parent,child].dot(ll_mats[child])
                     else:
@@ -180,12 +190,22 @@ cpdef cacheCognateMatML2(double[:] pi, int root, dict ll_mats, list cache_LL_Mat
                         LL_mat[parent] = p_t[parent,child].dot(LL_mat[child])
                     else:
                         LL_mat[parent] *= p_t[parent,child].dot(LL_mat[child])
-            else:
-                LL_mat[parent] = cache_LL_Mats[i][parent]#.copy()
-        ll += np.dot(pi, LL_mat[root])/(n_cats*1.0)
-        LL_mats.append(LL_mat)
-    LL = np.sum(np.log(ll))
-    return LL, LL_mats
+
+                if parent == mrca: mrca_flag += 1
+                
+                if mrca_flag > 0 and parent == mrca:
+                    break  
+
+            ll_cogclass += np.dot(pi, LL_mat[mrca])/n_cats
+        LL += np.sum(np.log(ll_cogclass))
+        
+        i += 1
+        
+#        temp_ll = np.sum(np.log(ll))
+#        LL += temp_ll
+#    LL = np.sum(np.log(ll))
+    
+    return LL
 
 cpdef cognateMatML3(double[:] pi, int root, list ll_mats_list, list edges, list tmats, float n_cats, list mrca_list):
     #weighs the likelihood of each meaning without gamma site rate. Removing weighing also. Possible bug in the cognateMatML2 function
@@ -481,3 +501,17 @@ cpdef matML1(dict state, list taxa, dict ll_mats):
 
 #        if mrca != root:
 #            print("{}th cognate set, root = {}, mrca = {}, LL Difference Vector = {}".format(i, root, mrca, np.log(np.dot(pi, LL_mat[root]))-np.log(np.dot(pi, LL_mat[mrca]))))
+
+
+
+#            temp_root = np.sum(np.log(np.dot(pi, LL_mat[mrca]))) #mrca likelihood codeblock
+
+#            print("cognate set = {}, mrca = {}, root = {}".format(i, mrca, root))
+#            ll_root_mrca[i] += np.sum(np.log(np.dot(pi, LL_mat[mrca])/n_cats))
+#            ll_root[i] += np.sum(np.log(np.dot(pi, LL_mat[root])/n_cats))
+
+#            i += 1
+#    print("LL_mrca = {}, LL_root_mrca = {}, LL_root = {}".format(np.asarray(ll_mrca), np.asarray(ll_root_mrca), np.asarray(ll_root)))
+#    print("LL_mrca = {}, LL_root_mrca = {}, LL_root = {}".format(np.sum(ll_mrca), np.sum(ll_root_mrca), np.sum(ll_root)))
+
+#    LL = np.sum(ll_root)

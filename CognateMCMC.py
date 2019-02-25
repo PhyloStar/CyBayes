@@ -86,6 +86,7 @@ config.N_GEN = args.n_gen
 config.THIN = args.thin
 config.MODEL = args.model
 config.N_NODES = 2*config.N_TAXA -1
+config.N_COG_CLASSES = len(config.LEAF_LLMAT_LIST)
 
 print("Characters ", config.N_CHARS)
 print("TAXA ", config.TAXA)
@@ -109,13 +110,17 @@ if config.N_CATS > 1:
 else:
     site_rates = init_state["srates"]
 
+config.N_BRANCHES = len(init_state["postorder"])
+
 cache_LL_Mats, cache_paths_dict = None, None
 
 mrca_list = get_mrca_list(init_state["postorder"], cogset_taxa_list, init_state["root"]) #obtain the mrca_list
 
 print("Number of cognate classes = {}".format(len(config.LEAF_LLMAT_LIST)), sep="\n")
 
-init_state["logLikehood"] = cognateMatML2(init_state["pi"], init_state["root"], config.LEAF_LLMAT_LIST, init_state["postorder"], init_state["transitionMat"], config.N_CATS, mrca_list)
+init_state["logLikehood"], cache_LL_Mats = cognateMatML2(init_state["pi"], init_state["root"], config.LEAF_LLMAT_LIST, init_state["postorder"], init_state["transitionMat"], config.N_CATS, mrca_list)
+
+#print(cache_LL_Mats)
 
 state = init_state.copy()
 init_tree = adjlist2newickBL(state["tree"], adjlist2nodes_dict(state["tree"]), state["root"])+";"
@@ -207,7 +212,7 @@ for n_iter in range(1,  config.N_GEN+1):
     if param_select == "tree":
         prop_mrca_list = get_mrca_list(propose_state["postorder"], cogset_taxa_list, state["root"])
 #        if prop_mrca_list == mrca_list: print("mrca list did not change ", move.__name__)
-        assert len(prop_mrca_list) == len(mrca_list)
+#        assert len(prop_mrca_list) == len(mrca_list)
     else:
         prop_mrca_list = mrca_list[:]
 
@@ -217,7 +222,9 @@ for n_iter in range(1,  config.N_GEN+1):
             old_edge_p_ts.append(state["transitionMat"][imr][change_edge].copy())
             state["transitionMat"][imr][change_edge] = get_edge_transition_mat(propose_state["pi"], propose_state["rates"], propose_state["tree"][change_edge]*mean_rate)
 
-        proposed_ll = cognateMatML2(propose_state["pi"], state["root"], config.LEAF_LLMAT_LIST, propose_state["postorder"], state["transitionMat"], config.N_CATS, prop_mrca_list)
+#        proposed_ll, proposed_llMat = cognateMatML2(propose_state["pi"], state["root"], config.LEAF_LLMAT_LIST, propose_state["postorder"], state["transitionMat"], config.N_CATS, prop_mrca_list)
+
+        proposed_ll, proposed_llMat = cacheCognateMatML2(propose_state["pi"], state["root"], config.LEAF_LLMAT_LIST, cache_LL_Mats, nodes_recompute, state["postorder"], state["transitionMat"], config.N_CATS, prop_mrca_list)
 
     elif move.__name__ == "node_slider":
         for imr, mean_rate in enumerate(site_rates):
@@ -227,18 +234,20 @@ for n_iter in range(1,  config.N_GEN+1):
             state["transitionMat"][imr][change_edge] = get_edge_transition_mat(propose_state["pi"], propose_state["rates"], propose_state["tree"][change_edge]*mean_rate)
             state["transitionMat"][imr][change_parent_edge] = get_edge_transition_mat(propose_state["pi"], propose_state["rates"], propose_state["tree"][change_parent_edge]*mean_rate)
 
-        proposed_ll = cognateMatML2(propose_state["pi"], state["root"], config.LEAF_LLMAT_LIST, propose_state["postorder"], state["transitionMat"], config.N_CATS, prop_mrca_list)
+#        proposed_ll, proposed_llMat = cognateMatML2(propose_state["pi"], state["root"], config.LEAF_LLMAT_LIST, propose_state["postorder"], state["transitionMat"], config.N_CATS, prop_mrca_list)
+
+        proposed_ll, proposed_llMat = cacheCognateMatML2(propose_state["pi"], state["root"], config.LEAF_LLMAT_LIST, cache_LL_Mats, nodes_recompute, state["postorder"], state["transitionMat"], config.N_CATS, prop_mrca_list)
 
     elif move.__name__ == "rooted_NNI":
         for imr, mean_rate in enumerate(site_rates):
             state["transitionMat"][imr][nodes_list[0],nodes_list[3]], state["transitionMat"][imr][nodes_list[1],nodes_list[2]] = state["transitionMat"][imr][nodes_list[1],nodes_list[3]].copy(), state["transitionMat"][imr][nodes_list[0],nodes_list[2]].copy() #Perform a swap operation
 
-        proposed_ll = cognateMatML2(propose_state["pi"], state["root"], config.LEAF_LLMAT_LIST, propose_state["postorder"], state["transitionMat"], config.N_CATS, prop_mrca_list)
+        proposed_ll, proposed_llMat = cognateMatML2(propose_state["pi"], state["root"], config.LEAF_LLMAT_LIST, propose_state["postorder"], state["transitionMat"], config.N_CATS, prop_mrca_list)
 
     else:
         prop_tmats = [get_prob_t(propose_state["pi"], propose_state["tree"], propose_state["rates"], mean_rate) for mean_rate in site_rates]
 
-        proposed_ll = cognateMatML2(propose_state["pi"], state["root"], config.LEAF_LLMAT_LIST, propose_state["postorder"], prop_tmats, config.N_CATS, prop_mrca_list)
+        proposed_ll, proposed_llMat = cognateMatML2(propose_state["pi"], state["root"], config.LEAF_LLMAT_LIST, propose_state["postorder"], prop_tmats, config.N_CATS, prop_mrca_list)
 
     current_ll = state["logLikehood"]
     ll_ratio = proposed_ll - current_ll + pr_ratio
@@ -262,6 +271,7 @@ for n_iter in range(1,  config.N_GEN+1):
                 del state["transitionMat"][ip_t][nodes_list[0],nodes_list[2]], state["transitionMat"][ip_t][nodes_list[1],nodes_list[3]]
 
         state["logLikehood"] = proposed_ll
+        cache_LL_Mats = proposed_llMat
 
         accepts_count[param_select,move.__name__] += 1
 
