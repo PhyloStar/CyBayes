@@ -13,7 +13,7 @@ cpdef readBinaryPhy(str fname):
     cdef list alphabet, taxa_list
     cdef int n_leaves, n_sites, n_chars
     cdef str line, taxa, char_vector, ch, header
-    
+    alphabet_counter = defaultdict(float)
     alphabet, taxa_list = [], []
     f = open(fname)
     header = f.readline().strip()
@@ -26,6 +26,7 @@ cpdef readBinaryPhy(str fname):
         taxa = taxa.replace(" ","")
         assert len(char_vector) == n_sites
         for ch in char_vector:
+            alphabet_counter[ch] += 1
             if ch not in alphabet and ch not in ["?", "-"]:
                 alphabet.append(ch)
         site_dict[taxa] = char_vector
@@ -34,7 +35,7 @@ cpdef readBinaryPhy(str fname):
     n_chars = len(alphabet)
     ll_mats= sites2Mat(site_dict, n_chars, alphabet, taxa_list)
     #print(ll_mats)
-    return n_leaves, n_chars, alphabet, site_dict, ll_mats,taxa_list, n_sites
+    return n_leaves, n_chars, alphabet, site_dict, ll_mats,taxa_list, n_sites, alphabet_counter
 
 cpdef readCognatePhy(str fname):
     ll_mats_list, alphabet, taxa_list, n_leaves = [], [], [], 0
@@ -42,6 +43,8 @@ cpdef readCognatePhy(str fname):
     f = open(fname)
 
     site_dict, sites_dict_list, cogset_taxa_list = {}, [], []
+    
+    alphabet_counter = defaultdict(float)
     
     for line in f:
         if line == "\n":
@@ -53,6 +56,7 @@ cpdef readCognatePhy(str fname):
         taxa = taxa.replace(" ","")
 
         for ch in char_vector:
+            alphabet_counter[ch] += 1
             if ch not in alphabet and ch not in ["?", "-"]:
                 alphabet.append(ch)
         site_dict[taxa] = list(char_vector)
@@ -87,7 +91,7 @@ cpdef readCognatePhy(str fname):
     f.close()    
 
     n_leaves = len(taxa_list)
-    return n_leaves, n_chars, alphabet, ll_mats_list, taxa_list, cogset_taxa_list
+    return n_leaves, n_chars, alphabet, ll_mats_list, taxa_list, cogset_taxa_list, alphabet_counter
     
 
 def readPhy(fname):

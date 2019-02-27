@@ -69,21 +69,23 @@ parser.add_argument("-n","--n_gen", help="Number of generations",  type=int)
 parser.add_argument("-t","--thin", help="Number of generations after to print to file",  type=int)
 parser.add_argument("-d","--data_type", help="Type of data if it is binary/multistate. Multistate characters should be separated by a space whereas binary need not be. Specify bin for binary and multi for multistate characters or phonetic alignments. It could also be cognate alignments separated by newlines",  type=str)
 parser.add_argument("-o","--output_file", help="Name of the out file prefix",  type=str)
+parser.add_argument("-pi","--base_freqs", help="Fixed Base Frequencies",  type=str)
 args = parser.parse_args()
 
 if args.data_type == "bin":
-    config.N_TAXA, config.N_CHARS, config.ALPHABET, site_dict, config.LEAF_LLMAT, config.TAXA, config.N_SITES = utils.readBinaryPhy(args.input_file)
+    config.N_TAXA, config.N_CHARS, config.ALPHABET, site_dict, config.LEAF_LLMAT, config.TAXA, config.N_SITES, alphabet_counter = utils.readBinaryPhy(args.input_file)
 
 elif args.data_type == "multi":
     config.N_TAXA, config.N_CHARS, config.ALPHABET, site_dict, config.LEAF_LLMAT, config.TAXA, config.N_SITES = utils.readMultiPhy(args.input_file)
 
 elif args.data_type == "cognate":
-    config.N_TAXA, config.N_CHARS, config.ALPHABET, config.LEAF_LLMAT_LIST, config.TAXA, cogset_taxa_list = utils.readCognatePhy(args.input_file)
+    config.N_TAXA, config.N_CHARS, config.ALPHABET, config.LEAF_LLMAT_LIST, config.TAXA, cogset_taxa_list, alphabet_counter = utils.readCognatePhy(args.input_file)
 
 if args.data_type == "cognate":
     config.IN_DTYPE = "multi"
 else:
     config.IN_DTYPE = args.data_type
+
 config.N_GEN = args.n_gen
 config.THIN = args.thin
 config.MODEL = args.model
@@ -104,6 +106,7 @@ if config.MODEL == "JC":
     config.NORM_BETA = config.N_CHARS/(config.N_CHARS-1)
 
 init_state = state_init()
+
 #print("Init state PI ",np.asarray(init_state["pi"]).shape)
 #print(np.asarray(init_state["rates"]).shape)
 
@@ -120,7 +123,12 @@ mrca_list = get_mrca_list(init_state["postorder"], cogset_taxa_list, init_state[
 
 print("Number of cognate classes = {}".format(len(config.LEAF_LLMAT_LIST)), sep="\n")
 
-init_state["logLikehood"], cache_LL_Mats = cognateMatML2(init_state["pi"], init_state["root"], config.LEAF_LLMAT_LIST, init_state["postorder"], init_state["transitionMat"], config.N_CATS, mrca_list)
+if args.base_freqs == "ml":
+    norm_sum = sum(list(alphabet_counter.values()))
+    base_freqs = [alphabet_counter[x]/norm_sum for x in config.ALPHABET]
+    init_state["pi"] = np.array(base_freqs)
+
+init_state["logLikehood"], cache_LL_Mats = cognateMatML2(init_state["pi"], init_state["root"], config.LEAF_LLMAT_LIST, init_state["postorder"], init_state["transitionMat"], config.N_CATS, mrca_list, config.N_COG_CLASSES)
 
 leaves_mat_list = []
 
@@ -142,7 +150,6 @@ for llmat in config.LEAF_LLMAT_LIST:
 
 #print(cache_LL_Mats)
 
-
 state = init_state.copy()
 init_tree = adjlist2newickBL(state["tree"], adjlist2nodes_dict(state["tree"]), state["root"])+";"
 cache_paths_dict = adjlist2reverse_nodes_dict(state["tree"]) #Caches the paths dictionary
@@ -163,12 +170,15 @@ elif config.MODEL == "JC":
 
 if config.N_CATS == 1: weights[-1] = 0.0
 
+#if args.base_freqs == "fixed": weights[0] = 0.0
+
 tree_move_weights = np.array([4, 1], dtype=np.float64)
 bl_move_weights = np.array([3, 1], dtype=np.float64)
 
 weights = weights/np.sum(weights)
 tree_move_weights = tree_move_weights/np.sum(tree_move_weights)
 bl_move_weights = bl_move_weights/np.sum(bl_move_weights)
+
 
 moves_count = defaultdict(int)
 accepts_count = defaultdict(int)
@@ -249,9 +259,9 @@ for n_iter in range(1,  config.N_GEN+1):
 
 #        proposed_ll = parCognateMatML(propose_state["pi"], state["root"], config.LEAF_LLMAT_LIST, propose_state["postorder"], state["transitionMat"], config.N_CATS, prop_mrca_list)
 
-        assert state["postorder"] == propose_state["postorder"]
+#        assert state["postorder"] == propose_state["postorder"]
 
-        proposed_ll, proposed_llMat = cacheCognateMatML2(propose_state["pi"], state["root"], config.LEAF_LLMAT_LIST, cache_LL_Mats, nodes_recompute, state["postorder"], state["transitionMat"], config.N_CATS, prop_mrca_list)
+        proposed_ll, proposed_llMat = cacheCognateMatML2(propose_state["pi"], state["root"], config.LEAF_LLMAT_LIST, cache_LL_Mats, nodes_recompute, state["postorder"], state["transitionMat"], config.N_CATS, prop_mrca_list, config.N_COG_CLASSES)
 
     elif move.__name__ == "node_slider":
         for imr, mean_rate in enumerate(site_rates):
@@ -267,7 +277,7 @@ for n_iter in range(1,  config.N_GEN+1):
 
 #        proposed_ll, proposed_llMat = cognateMatML2(propose_state["pi"], state["root"], config.LEAF_LLMAT_LIST, state["postorder"], state["transitionMat"], config.N_CATS, prop_mrca_list)
 
-        proposed_ll, proposed_llMat = cacheCognateMatML2(propose_state["pi"], state["root"], config.LEAF_LLMAT_LIST, cache_LL_Mats, nodes_recompute, state["postorder"], state["transitionMat"], config.N_CATS, prop_mrca_list)
+        proposed_ll, proposed_llMat = cacheCognateMatML2(propose_state["pi"], state["root"], config.LEAF_LLMAT_LIST, cache_LL_Mats, nodes_recompute, state["postorder"], state["transitionMat"], config.N_CATS, prop_mrca_list, config.N_COG_CLASSES)
 
     elif move.__name__ == "rooted_NNI":
         for imr, mean_rate in enumerate(site_rates):
@@ -278,14 +288,14 @@ for n_iter in range(1,  config.N_GEN+1):
 
 #        proposed_ll, proposed_llMat = cognateMatML2(propose_state["pi"], state["root"], config.LEAF_LLMAT_LIST, propose_state["postorder"], state["transitionMat"], config.N_CATS, prop_mrca_list)
 
-        proposed_ll, proposed_llMat = cacheCognateMatML2(propose_state["pi"], state["root"], config.LEAF_LLMAT_LIST, cache_LL_Mats, nodes_recompute, propose_state["postorder"], state["transitionMat"], config.N_CATS, prop_mrca_list)
+        proposed_ll, proposed_llMat = cacheCognateMatML2(propose_state["pi"], state["root"], config.LEAF_LLMAT_LIST, cache_LL_Mats, nodes_recompute, propose_state["postorder"], state["transitionMat"], config.N_CATS, prop_mrca_list, config.N_COG_CLASSES)
 
     else:
         prop_tmats = [get_prob_t(propose_state["pi"], propose_state["tree"], propose_state["rates"], mean_rate) for mean_rate in site_rates]
 
 #        proposed_ll = parCognateMatML(propose_state["pi"], state["root"], config.LEAF_LLMAT_LIST, propose_state["postorder"], prop_tmats, config.N_CATS, prop_mrca_list)
 
-        proposed_ll, proposed_llMat = cognateMatML2(propose_state["pi"], state["root"], config.LEAF_LLMAT_LIST, propose_state["postorder"], prop_tmats, config.N_CATS, prop_mrca_list)
+        proposed_ll, proposed_llMat = cognateMatML2(propose_state["pi"], state["root"], config.LEAF_LLMAT_LIST, propose_state["postorder"], prop_tmats, config.N_CATS, prop_mrca_list, config.N_COG_CLASSES)
 
     current_ll = state["logLikehood"]
     ll_ratio = proposed_ll - current_ll + pr_ratio
