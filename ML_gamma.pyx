@@ -61,35 +61,29 @@ cpdef cognateMatML2(double[:] pi, int root, list ll_mats_list, list edges, list 
     cdef dict cache_LL_Mats = {}
     cdef int n_cog_sets = len(ll_mats_list)
 
-#    cdef double [:] ll_root_mrca = np.zeros(len(ll_mats_list))
-#    cdef double [:] ll_root = np.zeros(len(ll_mats_list))
     cdef double [:] ll_mrca = np.zeros(n_cog_sets)
     
     cdef dict ll_mats
 
     LL = 0.0
     for k in range(n_cats):
-#    for p_t in tmats:
         p_t = tmats[k]
-#        i, LL_root, j = 0, 0.0, 0
         
-#        for ll_mats in ll_mats_list:
         for i in range(n_cog_sets):
-#            ll_mats = config.LEAF_LLMAT_LIST[i]
             ll_mats = ll_mats_list[i]
             mrca = mrca_list[i]
 
             LL_mat = {}
             mrca_flag = -1
 
-#            for j in range(config.N_BRANCHES):
-#                parent = edges[j][0]
-#                child = edges[j][1]
 
             for parent, child in edges:
                 if child <= config.N_TAXA:
                     if parent not in LL_mat:
                         LL_mat[parent] = p_t[parent,child].dot(ll_mats[child])
+                        print(p_t[parent,child])
+                        print(ll_mats[child])
+                        print(LL_mat[parent])
                     else:
                         LL_mat[parent] *= p_t[parent,child].dot(ll_mats[child])
                 else:
@@ -104,7 +98,7 @@ cpdef cognateMatML2(double[:] pi, int root, list ll_mats_list, list edges, list 
                     mrca_ll =  np.sum(np.log(np.dot(pi, LL_mat[mrca])/n_cats))
                     ll_mrca[i] += mrca_ll
                     cache_LL_Mats[k,i] = LL_mat
-                    break
+#                    break
     LL = np.sum(ll_mrca)
 
     return LL, cache_LL_Mats
@@ -150,8 +144,7 @@ cpdef cacheCognateMatML2(double[:] pi, int root, list ll_mats_list, dict cache_L
                     mrca_ll =  np.sum(np.log(np.dot(pi, LL_mat[mrca])/n_cats))
                     ll_mrca[i] += mrca_ll
                     LL_mats[k,i] = LL_mat
-#                    cache_LL_Mats[k,i] = LL_mat
-                    break
+#                    break
     LL = np.sum(ll_mrca)
 
     return LL, LL_mats
@@ -399,8 +392,6 @@ cpdef matML_cython(double[:] pi, int root, dict ll_mats, list edges, list tmats,
         LL_mats[i] = LL_mat
     LL = np.sum(np.log(ll))
     return LL, LL_mats
-
-#cpdef cache_matML(dict state, list taxa, dict ll_mats, list cache_LL_Mats, list nodes_recompute):
 
 cpdef cache_matML(double[:] pi, int root, dict ll_mats, list cache_LL_Mats, list nodes_recompute, list edges, list tmats, int n_sites, int n_taxa, int n_cats):
     cdef list LL_mats = []

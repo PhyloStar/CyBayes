@@ -167,6 +167,8 @@ for n_iter in range(1,  config.N_GEN+1):
 
         proposed_ll, proposed_llMat = cache_matML(propose_state["pi"], state["root"], config.LEAF_LLMAT, cache_LL_Mats, nodes_recompute, propose_state["postorder"], state["transitionMat"], config.N_SITES, config.N_TAXA, config.N_CATS)
 
+#        proposed_ll, proposed_llMat = matML(propose_state["pi"],  state["root"], config.LEAF_LLMAT, propose_state["postorder"], state["transitionMat"], config.N_SITES, config.N_TAXA, config.N_CATS)
+
     else:
         prop_tmats = [get_prob_t(propose_state["pi"], propose_state["tree"], propose_state["rates"], mean_rate) for mean_rate in site_rates]
         proposed_ll, proposed_llMat = matML(propose_state["pi"],  state["root"], config.LEAF_LLMAT, propose_state["postorder"], prop_tmats, config.N_SITES, config.N_TAXA, config.N_CATS)

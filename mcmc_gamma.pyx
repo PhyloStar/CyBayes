@@ -184,7 +184,7 @@ cpdef externalSPR(dict edges_list,int root_node):
 
     return edges_list, new_postorder, hastings_ratio
 
-cpdef mvDualSlider(double[:] pi):
+cpdef mvDualSlider(np.ndarray[double, ndim=1] pi):
     cdef int i, j 
     i, j = random.sample(range(pi.shape[0]), 2)
 #    i, j = random.sample(range(config.N_CHARS), 2)
@@ -315,7 +315,10 @@ cpdef rtree():
     return "".join(taxa_list)
 
 cpdef init_pi_er():
-    cdef double[:] pi, er
+#    cdef double[:] pi, er
+
+    cdef np.ndarray[double, ndim=1] pi, er
+
     #cdef double[:] er
     #print config.N_CHARS
     
@@ -592,7 +595,8 @@ cpdef state_init():
     state["postorder"] = edges_ordered_list
     state["transitionMat"] = []
     if config.N_CATS > 1:
-        state["srates"] = init_alpha_rate()
+#        state["srates"] = init_alpha_rate()
+        state["srates"] = 1.0
         site_rates = get_siterates(state["srates"])        
         for mean_rate in site_rates:
             state["transitionMat"].append(get_prob_t(state["pi"], state["tree"], state["rates"], mean_rate))
@@ -604,6 +608,8 @@ cpdef state_init():
 
 cpdef get_siterates(float alpha):
     cutoffs = [chi2.isf(1-p,2*alpha) for p in np.arange(1.0/config.N_CATS,1,1.0/config.N_CATS)]
+    if config.N_CATS == 3:
+        cutoffs = cutoffs[:-1]
     site_rates = [gammainc(alpha+1,cutoffs[0]*alpha)*config.N_CATS]
     for i in range(1,config.N_CATS-1):
         site_rates.append((gammainc(alpha+1,cutoffs[i]*alpha)-gammainc(alpha+1,cutoffs[i-1]*alpha))*config.N_CATS)
