@@ -95,7 +95,7 @@ propose_state, prop_tmats = {}, []
 
 start_time = time.time()
 
-n_iter = 0
+n_iter = 1
 
 while(1):
     propose_state["pi"],  propose_state["rates"], propose_state["srates"], propose_state["tree"], propose_state["postorder"] = state["pi"].copy(), state["rates"].copy(), state["srates"], state["tree"].copy(), state["postorder"].copy()
