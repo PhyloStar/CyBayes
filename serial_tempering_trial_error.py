@@ -19,9 +19,12 @@ parser.add_argument("-d","--data_type", help="Type of data if it is binary/multi
 parser.add_argument("-o","--output_file", help="Name of the out file prefix",  type=str)
 parser.add_argument("-N","--n_chains", help="Name of the out file prefix",  type=int, default=4)
 parser.add_argument("-dt","--deltaT", help="Chain temperature spacing",  type=float, default=0.1)
-parser.add_argument("-a","--adjust_step", help="Chain temperature spacing",  type=int, default=100)
+parser.add_argument("-a","--adjust_step", help="Chain temperature spacing",  type=int, default=500)
 parser.add_argument("-C","--st_const", help="Upper bound",  type=int, default=10)
-
+parser.add_argument("-p","--inc_temp", help="Harmonic/geometric spacing of temperature",  type=str, default="hm")
+parser.add_argument("-cr","--converge_ratio", help="Convergence ratio",  type=float, default=2)
+parser.add_argument("-ct","--cold_chain_thin", help="Thin the cold chain",  type=int, default=500)
+parser.add_argument("-cn","--cold_n_gen", help="Number of samples in cold chain",  type=int, default = 1000)
 args = parser.parse_args()
 
 if args.data_type == "bin":
@@ -84,6 +87,9 @@ moves_count = defaultdict(int)
 accepts_count = defaultdict(int)
 moves_dict = {"pi": [mvDualSlider], "rates": [mvDualSlider], "tree":[rooted_NNI, externalSPR], "bl":[scale_edge, node_slider], "srates":[scale_alpha]}
 
+if args.data_type == "bin":
+    moves_dict["pi"] = [mvBinaryDualSlider]
+
 params_fileWriter = open(args.output_file+".log","w")
 trees_fileWriter = open(args.output_file+".trees","w")
 const_states = ["pi("+idx+")" for idx in config.ALPHABET]
@@ -96,15 +102,18 @@ counts_states = np.zeros(args.n_chains)
 global_counts_states = np.zeros(args.n_chains)
 print("Log_psuedo_prior ", log_psuedo_prior)
 
-chain_T_dict = {i: 1.0/(1+(i*args.deltaT)) for i in range(args.n_chains)}#A harmonic spacing temperature chain. Add a parser setting here.
-chain_T_dict = {i: 1.0/(1+args.deltaT)**i for i in range(args.n_chains)}#Geometric spacing
+if args.inc_temp == "hm":
+    chain_T_dict = {i: 1.0/(1+(i*args.deltaT)) for i in range(args.n_chains)}#A harmonic spacing temperature chain. Add a parser setting here.
+elif args.inc_temp == "gm":
+    chain_T_dict = {i: 1.0/(1+args.deltaT)**i for i in range(args.n_chains)}#Geometric spacing
+
 print(chain_T_dict)
 current_chain = 0 # Initialize with random state. np.random.randint(args.n_chains)
 curr_beta_t = chain_T_dict[current_chain]
 
-print("Iter", "LnL", "TL", "Alpha", sep="\t", file=params_fileWriter)
+print("Iter", "LnL", "TL", "Alpha", *const_states, sep="\t", file=params_fileWriter)
 #for n_iter in range(1,  config.N_GEN+1):
-n_iter = 1
+n_iter, n_iter_chain0 = 1, 1
 while(1):
 
     counts_states[current_chain] += 1
@@ -230,16 +239,16 @@ while(1):
 
     else:
         jump_ratio = 0
-        list_n_chains = list(range(args.n_chains))
-        list_n_chains.remove(current_chain)
-        propose_chain = random.choice(list_n_chains)
+#        list_n_chains = list(range(args.n_chains))
+#        list_n_chains.remove(current_chain)
+#        propose_chain = random.choice(list_n_chains)
 
-#        if current_chain == 0:
-#            propose_chain = 1
-#        elif current_chain == args.n_chains-1:
-#            propose_chain = current_chain - 1
-#        else:
-#            propose_chain = random.choice([current_chain-1, current_chain+1])
+        if current_chain == 0:
+            propose_chain = 1
+        elif current_chain == args.n_chains-1:
+            propose_chain = current_chain - 1
+        else:
+            propose_chain = random.choice([current_chain-1, current_chain+1])
 #            if propose_chain > current_chain:
 #                jump_ratio = np.log(0.5)
 #            else:
@@ -249,33 +258,44 @@ while(1):
 
         swap_ratio = (diff_beta*(state["logLikehood"])) + log_psuedo_prior[propose_chain] - log_psuedo_prior[current_chain] + jump_ratio
         
-        moves_count["jump"] += 1
+        moves_count["jump:", current_chain, propose_chain] += 1
 
         if np.log(random.random()) <= swap_ratio:
-            if n_iter % config.THIN == 0:
-                print("Accepted Current chain ", current_chain, "Proposed chain ", propose_chain, "with swap ratio ", swap_ratio, "at iteration", n_iter)
+            accepts_count["jump:", current_chain, propose_chain] += 1
+#            if n_iter % config.THIN == 0:
+#                print("Accepted Current chain ", current_chain, "Proposed chain ", propose_chain, "with swap ratio ", swap_ratio, "at iteration", n_iter)
             current_chain = propose_chain
             curr_beta_t = chain_T_dict[current_chain]
-            accepts_count["jump"] += 1
+            
 
     TL = sum(state["tree"].values())
-#    stationary_freqs = "\t".join([str(state["pi"][idx]) for idx in range(config.N_CHARS)])
+    stationary_freqs = "\t".join([str(state["pi"][idx]) for idx in range(config.N_CHARS)])
     sampled_tree = adjlist2newickBL(state["tree"], adjlist2nodes_dict(state["tree"]), state["root"])+";"
     if n_iter % config.THIN == 0:
         print(n_iter, current_ll, proposed_ll, TL, param_select, move.__name__, current_chain, sep="\t")
     if current_chain == 0:
-        print(n_iter, state["logLikehood"], TL, state["srates"], sep="\t", file=params_fileWriter)
-        print(n_iter, sampled_tree, sep="\t", file=trees_fileWriter)
+        n_iter_chain0 += 1
+        if n_iter_chain0 % args.cold_chain_thin == 0:
+            print(n_iter_chain0, state["logLikehood"], TL, state["srates"], stationary_freqs, sep="\t", file=params_fileWriter)
+            print(n_iter_chain0, sampled_tree, sep="\t", file=trees_fileWriter)
 
-    #Adjust logpsuedo prior
+    n_iter +=  1
+    global_counts_states[current_chain] += 1
+        
+    #Adjust logpsuedo prior according to Geyer et al 2010
     if n_iter % args.adjust_step == 0:
         temp_counts = counts_states/np.sum(counts_states)
         
-        max_temp_counts = np.max(temp_counts)
-        min_temp_counts = np.min(temp_counts)
+#        max_temp_counts = np.max(temp_counts)
+#        min_temp_counts = np.min(temp_counts)
+
+        max_temp_counts = np.max(global_counts_states)
+        min_temp_counts = np.min(global_counts_states)
+
 #        print("Visited chains relative frequency ", counts_states, temp_counts, min_temp_counts, max_temp_counts)
         counts_states = np.zeros(args.n_chains) #May be zero the counts if needed. Let us check later 
-        if (min_temp_counts > 0 and max_temp_counts/min_temp_counts < 1.2) and n_iter > args.n_gen: break
+        if (min_temp_counts > 0 and max_temp_counts/min_temp_counts < args.converge_ratio) and n_iter_chain0 > args.cold_chain_thin * args.cold_n_gen:
+            break
         
         clip_x = np.clip(np.log(np.max(temp_counts)/temp_counts), None, args.st_const) #c_k = 1/d_k. 
 #        clip_x = np.clip(np.log(1/temp_counts), None, args.st_const)
@@ -286,16 +306,20 @@ while(1):
         log_psuedo_prior = log_psuedo_prior-np.min(log_psuedo_prior)
 #        print("Log Psuedo Prior after subtracting min", log_psuedo_prior)
         #Make the cliiping bound as input variable
-        
-    n_iter +=  1
-    global_counts_states[current_chain] += 1
+
 
 for k, v in moves_count.items():
-    print(k, accepts_count[k], v)
+    print(*k, round(accepts_count[k]/v, 2))
+
+#for k, v in moves_count.items():
+#    print(k, v)
+
+#for k, v in accepts_count.items():
+#    print(k, v)
 
 time_end = time.time()
 
 print("MCMC chain run for {} iterations for {} seconds".format(n_iter, round(time_end-time_start, 3)))
 
-print(global_counts_states)
+print("Chain temperature visit counts ",*global_counts_states, sep="\t")
 

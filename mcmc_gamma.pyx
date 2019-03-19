@@ -21,7 +21,7 @@ from multiprocessing import Pool
 cdef double bl_exp_scale = 0.1
 cdef double scaler_alpha = 1.0
 cdef double epsilon = 1e-10
-
+cdef double window = 0.1
 
 cpdef get_path2root(dict X, int internal_node, int root):
     cdef list paths = []
@@ -37,7 +37,7 @@ cpdef get_path2root(dict X, int internal_node, int root):
     
     return paths
 
-cpdef scale_edge(dict temp_edges_dict):
+cpdef scale_edge_exponential(dict temp_edges_dict):
     cdef tuple rand_edge
     cdef double rand_bl, rand_bl_new, log_c, c, prior_ratio
     
@@ -59,7 +59,7 @@ cpdef scale_edge(dict temp_edges_dict):
     
     return temp_edges_dict, log_c, prior_ratio, rand_edge
 
-cpdef node_slider(dict temp_edges_dict, int root_node):
+cpdef node_slider_exponential(dict temp_edges_dict, int root_node):
     cdef tuple rand_edge
     cdef double rand_bl, rand_bl_new, log_c, c, prior_ratio
     
@@ -90,6 +90,71 @@ cpdef node_slider(dict temp_edges_dict, int root_node):
     #prior_ratio = bl_exp_scale*(rand_bl-rand_bl_new)
     
     return temp_edges_dict, log_c, prior_ratio, rand_edge, (parent_a, rand_edge[0])
+
+cpdef scale_edge(dict temp_edges_dict):
+    cdef tuple rand_edge
+    cdef double rand_bl, rand_bl_new, log_c, c, prior_ratio
+    
+    rand_edge = random.choice(list(temp_edges_dict))
+
+    rand_bl = temp_edges_dict[rand_edge]
+
+    log_c = scaler_alpha*(random.random()-0.5)
+    c = c_exp(log_c)
+    rand_bl_new = rand_bl*c
+    temp_edges_dict[rand_edge] = rand_bl_new
+
+    tl_old = sum(temp_edges_dict.values())
+    tl_new = tl_old-rand_bl+rand_bl_new
+
+    #prior_ratio = expon.logpdf(rand_bl_new, scale=bl_exp_scale) - expon.logpdf(rand_bl, scale=bl_exp_scale)
+    
+#    prior_ratio = -(rand_bl_new-rand_bl)/bl_exp_scale #exponential prior
+    
+    prior_ratio = -0.1*(tl_new-tl_old) -((2.0*config.N_TAXA-3)*(np.log(tl_new/tl_old)))#Gamma.Dirichlet prior with beta =0.1 and alpha 1 and symmetric dirichlet
+    
+    #prior_ratio = -math.log(bl_exp_scale*rand_bl_new) + math.log(bl_exp_scale*rand_bl)
+    #prior_ratio = bl_exp_scale*(rand_bl-rand_bl_new)
+    
+    return temp_edges_dict, log_c, prior_ratio, rand_edge
+
+cpdef node_slider(dict temp_edges_dict, int root_node):
+    cdef tuple rand_edge
+    cdef double rand_bl, rand_bl_new, log_c, c, prior_ratio
+    
+    nodes_dict = adjlist2reverse_nodes_dict(temp_edges_dict)
+    
+    while(1):
+        rand_edge = random.choice(list(temp_edges_dict))
+        if rand_edge[0] != root_node:
+            break
+    
+    parent_a = nodes_dict[rand_edge[0]]
+    bl_a = temp_edges_dict[parent_a, rand_edge[0]]
+    bl_b = temp_edges_dict[rand_edge]
+    rand_bl = bl_a+bl_b
+
+    log_c = scaler_alpha*(random.random()-0.5)
+    c = c_exp(log_c)
+    rand_bl_new = rand_bl*c
+    
+    temp_edges_dict[parent_a, rand_edge[0]] = rand_bl_new*random.random()
+    temp_edges_dict[rand_edge] = rand_bl_new - temp_edges_dict[parent_a, rand_edge[0]]
+
+    tl_old = sum(temp_edges_dict.values())
+    tl_new = tl_old-rand_bl+rand_bl_new
+
+    #prior_ratio = expon.logpdf(rand_bl_new, scale=bl_exp_scale) - expon.logpdf(rand_bl, scale=bl_exp_scale)
+    
+#    prior_ratio = -(rand_bl_new-rand_bl)/bl_exp_scale#exponential prior
+
+    prior_ratio = -0.1*(tl_new-tl_old) -((2.0*config.N_TAXA-3)*(np.log(tl_new/tl_old)))#Gamma.Dirichlet prior with beta =0.1 and alpha 1 and symmetric dirichlet
+
+    #prior_ratio = -math.log(bl_exp_scale*rand_bl_new) + math.log(bl_exp_scale*rand_bl)
+    #prior_ratio = bl_exp_scale*(rand_bl-rand_bl_new)
+    
+    return temp_edges_dict, log_c, prior_ratio, rand_edge, (parent_a, rand_edge[0])
+
 
 cpdef scale_alpha(float alpha):
     log_c = scaler_alpha*(random.random()-0.5)
@@ -197,6 +262,23 @@ cpdef mvDualSlider(double[:] pi):
         
     return pi, 0.0
 
+cpdef mvBinaryDualSlider(double[:] pi):
+    x = random.uniform(pi[0]-window/2, pi[0]+window/2)
+    if x < 0:
+        x = -x
+    if x > 1:
+        x = 2-x
+    pi[0] = x
+    pi[1] = 1-x
+#    cdef double sum_ij = pi[i]+pi[1]
+#    #cdef double x = random.uniform(epsilon, sum_ij)
+#    cdef double x = sum_ij*random.random()
+#    cdef double y = sum_ij -x
+#    pi[i], pi[j] = x, y
+        
+    return pi, 0.0
+
+
 cpdef postorder(dict nodes_dict, int node):
     """Return the post-order of edges to be processed.
     """
@@ -252,8 +334,16 @@ cpdef init_tree():
             del edge_dict[x,y]
             edge_dict[x, config.TAXA.index(y)+1] = 1
     
-    for k, v in edge_dict.items():
-        edge_dict[k] = random.expovariate(1.0/bl_exp_scale)
+    TL = random.gammavariate(1, 0.1)
+    n_branches = 2*config.N_TAXA-2
+    n_brans_lens = TL*np.random.dirichlet(np.repeat(1,n_branches))
+
+    for i, k in enumerate(edge_dict.keys()):
+        edge_dict[k] = n_brans_lens[i]
+
+#    for k, v in edge_dict.items():
+#        edge_dict[k] = random.expovariate(1.0/bl_exp_scale)
+
     
     #print edge_dict
     
