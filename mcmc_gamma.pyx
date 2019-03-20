@@ -250,15 +250,26 @@ cpdef externalSPR(dict edges_list,int root_node):
     return edges_list, new_postorder, hastings_ratio
 
 cpdef mvDualSlider(double[:] pi):
-    cdef int i, j 
+    cdef int i, j
+    cdef double sum_ij = 0.0
     i, j = random.sample(range(pi.shape[0]), 2)
+    sum_ij = pi[i]+pi[j]
+    x = random.uniform(pi[i]-window/2, pi[i]+window/2)
+    if x < 0:
+        x = -x
+    if x > sum_ij:
+        x = 2*sum_ij-x
+    
+    pi[i] = x
+    pi[j] = sum_ij-x
+
 #    i, j = random.sample(range(config.N_CHARS), 2)
 
-    cdef double sum_ij = pi[i]+pi[j]
-    #cdef double x = random.uniform(epsilon, sum_ij)
-    cdef double x = sum_ij*random.random()
-    cdef double y = sum_ij -x
-    pi[i], pi[j] = x, y
+#    cdef double sum_ij = pi[i]+pi[j]
+#    #cdef double x = random.uniform(epsilon, sum_ij)
+#    cdef double x = sum_ij*random.random()
+#    cdef double y = sum_ij -x
+#    pi[i], pi[j] = x, y
         
     return pi, 0.0
 
