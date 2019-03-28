@@ -8,7 +8,7 @@ random.seed(1234)
 from scipy.stats import dirichlet
 
 from scipy.special import gammainc
-from scipy.stats import chi2
+from scipy.stats import chi2, gamma
 
 from libc.math cimport exp as c_exp
 from libc.math cimport log as c_log
@@ -22,6 +22,21 @@ cdef double bl_exp_scale = 0.1
 cdef double scaler_alpha = 1.0
 cdef double epsilon = 1e-10
 cdef double window = 0.1
+
+cdef double min_shape_pr = 0.1
+cdef double max_shape_pr = 100
+cdef double shape_pr_exp = 2.0
+cdef double shape_scaler_tuning = 0.7
+cdef double shape_slider_window = 0.1
+cdef double a_S = 2
+cdef double b_S = 4
+
+cdef double min_branch_len = 0.00001
+cdef double max_branch_len = 100
+cdef double edge_slide_window = 0.1
+cdef double edge_scaler_window = 1.2
+cdef double a_T = 1
+cdef double b_T = 0.01#For large phylogenies up to 1000
 
 cpdef get_path2root(dict X, int internal_node, int root):
     cdef list paths = []
@@ -75,11 +90,11 @@ cpdef node_slider_exponential(dict temp_edges_dict, int root_node):
     bl_b = temp_edges_dict[rand_edge]
     rand_bl = bl_a+bl_b
 
-    log_c = scaler_alpha*(random.random()-0.5)
+    log_c = scaler_alpha*(np.random.random()-0.5)
     c = c_exp(log_c)
     rand_bl_new = rand_bl*c
     
-    temp_edges_dict[parent_a, rand_edge[0]] = rand_bl_new*random.random()
+    temp_edges_dict[parent_a, rand_edge[0]] = rand_bl_new*np.random.random()
     temp_edges_dict[rand_edge] = rand_bl_new - temp_edges_dict[parent_a, rand_edge[0]]
 
     #prior_ratio = expon.logpdf(rand_bl_new, scale=bl_exp_scale) - expon.logpdf(rand_bl, scale=bl_exp_scale)
@@ -97,26 +112,69 @@ cpdef scale_edge(dict temp_edges_dict):
     
     rand_edge = random.choice(list(temp_edges_dict))
 
-    rand_bl = temp_edges_dict[rand_edge]
+    old_bl = temp_edges_dict[rand_edge]
 
-    log_c = scaler_alpha*(random.random()-0.5)
+    log_c = edge_scaler_window*(np.random.random()-0.5)
     c = c_exp(log_c)
-    rand_bl_new = rand_bl*c
-    temp_edges_dict[rand_edge] = rand_bl_new
+    new_bl = old_bl*c
+
+    while(1):
+        if new_bl >= max_branch_len:
+            new_bl = max_branch_len**2/new_bl
+        elif new_bl <= min_branch_len:
+            new_bl = min_branch_len**2/new_bl            
+        elif new_bl < max_branch_len and new_bl > min_branch_len:
+            break
+
+    temp_edges_dict[rand_edge] = new_bl
 
     tl_old = sum(temp_edges_dict.values())
-    tl_new = tl_old-rand_bl+rand_bl_new
+    tl_new = tl_old-old_bl+new_bl
 
     #prior_ratio = expon.logpdf(rand_bl_new, scale=bl_exp_scale) - expon.logpdf(rand_bl, scale=bl_exp_scale)
     
 #    prior_ratio = -(rand_bl_new-rand_bl)/bl_exp_scale #exponential prior
     
-    prior_ratio = -0.1*(tl_new-tl_old) -((2.0*config.N_TAXA-3)*(np.log(tl_new/tl_old)))#Gamma.Dirichlet prior with beta =0.1 and alpha 1 and symmetric dirichlet
+    prior_ratio = -(b_T*(tl_new-tl_old)) -((2.0*config.N_TAXA-3)*(np.log(tl_new/tl_old)))#Gamma.Dirichlet prior with beta and alpha 1 and symmetric dirichlet
     
     #prior_ratio = -math.log(bl_exp_scale*rand_bl_new) + math.log(bl_exp_scale*rand_bl)
     #prior_ratio = bl_exp_scale*(rand_bl-rand_bl_new)
+
+    proposal_ratio = np.log(new_bl/old_bl)    
+
+    return temp_edges_dict, proposal_ratio, prior_ratio, rand_edge
+
+
+cpdef slide_edge(dict temp_edges_dict):
+    cdef tuple rand_edge
+    cdef double rand_bl, rand_bl_new, log_c, c, prior_ratio
     
-    return temp_edges_dict, log_c, prior_ratio, rand_edge
+    rand_edge = random.choice(list(temp_edges_dict))
+
+    old_bl = temp_edges_dict[rand_edge]
+
+    new_bl = np.random.uniform(old_bl-edge_slide_window/2, old_bl+edge_slide_window/2)
+
+    while(1):
+        if new_bl >= max_branch_len:
+            new_bl = 2*max_branch_len - new_bl
+        elif new_bl <= min_branch_len:
+            new_bl = 2*min_branch_len - new_bl
+        elif new_bl > min_branch_len and new_bl < max_branch_len:
+            break
+
+    temp_edges_dict[rand_edge] = new_bl
+
+    tl_old = sum(temp_edges_dict.values())
+    tl_new = tl_old-old_bl+new_bl
+
+    
+    prior_ratio = -(b_T*(tl_new-tl_old)) -((2.0*config.N_TAXA-3)*(np.log(tl_new/tl_old)))#Gamma.Dirichlet prior with beta and alpha 1 and symmetric dirichlet
+
+    proposal_ratio = 0.0
+
+    return temp_edges_dict, proposal_ratio, prior_ratio, rand_edge
+
 
 cpdef node_slider(dict temp_edges_dict, int root_node):
     cdef tuple rand_edge
@@ -132,36 +190,47 @@ cpdef node_slider(dict temp_edges_dict, int root_node):
     parent_a = nodes_dict[rand_edge[0]]
     bl_a = temp_edges_dict[parent_a, rand_edge[0]]
     bl_b = temp_edges_dict[rand_edge]
-    rand_bl = bl_a+bl_b
+#    old_bl = bl_a+bl_b
 
-    log_c = scaler_alpha*(random.random()-0.5)
+    log_c = scaler_alpha*(np.random.random()-0.5)
     c = c_exp(log_c)
-    rand_bl_new = rand_bl*c
-    
-    temp_edges_dict[parent_a, rand_edge[0]] = rand_bl_new*random.random()
-    temp_edges_dict[rand_edge] = rand_bl_new - temp_edges_dict[parent_a, rand_edge[0]]
+#    new_bl = old_bl*c
+
+    proposal_ratio = 2*(log_c + np.log(c*bl_a - min_branch_len) - np.log(bl_a - min_branch_len) + np.log(c*bl_b - min_branch_len) - np.log(bl_b - min_branch_len))
+
+    temp_edges_dict[parent_a, rand_edge[0]] = c*bl_a
+    temp_edges_dict[rand_edge] = c*bl_b
 
     tl_old = sum(temp_edges_dict.values())
-    tl_new = tl_old-rand_bl+rand_bl_new
+    tl_new = tl_old + ((c-1)*(bl_a+bl_b))
+
+#    while(1):
+#        if new_bl >= max_branch_len:
+#            new_bl = max_branch_len**2/new_bl
+#        elif new_bl <= min_branch_len:
+#            new_bl = min_branch_len**2/new_bl            
+#        elif new_bl < max_branch_len and new_bl > min_branch_len:
+#            break
+
+#    temp_edges_dict[parent_a, rand_edge[0]] = new_bl*np.random.random()
+#    temp_edges_dict[rand_edge] = new_bl - temp_edges_dict[parent_a, rand_edge[0]]
+
+#    tl_old = sum(temp_edges_dict.values())
+#    tl_new = tl_old-old_bl+new_bl
 
     #prior_ratio = expon.logpdf(rand_bl_new, scale=bl_exp_scale) - expon.logpdf(rand_bl, scale=bl_exp_scale)
     
 #    prior_ratio = -(rand_bl_new-rand_bl)/bl_exp_scale#exponential prior
 
-    prior_ratio = -0.1*(tl_new-tl_old) -((2.0*config.N_TAXA-3)*(np.log(tl_new/tl_old)))#Gamma.Dirichlet prior with beta =0.1 and alpha 1 and symmetric dirichlet
+    prior_ratio = -(b_T*(tl_new-tl_old)) -((2.0*config.N_TAXA-3)*(np.log(tl_new/tl_old)))#Gamma.Dirichlet prior with beta =0.1 and alpha 1 and symmetric dirichlet
 
     #prior_ratio = -math.log(bl_exp_scale*rand_bl_new) + math.log(bl_exp_scale*rand_bl)
     #prior_ratio = bl_exp_scale*(rand_bl-rand_bl_new)
     
-    return temp_edges_dict, log_c, prior_ratio, rand_edge, (parent_a, rand_edge[0])
+#    proposal_ratio = np.log(new_bl/old_bl) 
 
+    return temp_edges_dict, proposal_ratio, prior_ratio, rand_edge, (parent_a, rand_edge[0])
 
-cpdef scale_alpha(float alpha):
-    log_c = scaler_alpha*(random.random()-0.5)
-    c = c_exp(log_c)
-    new_alpha = alpha*c
-    pr_ratio = -(new_alpha-alpha)
-    return new_alpha, log_c, pr_ratio
 
 cpdef rooted_NNI(dict temp_edges_list, int root_node):
     """Performs Nearest Neighbor Interchange on a edges list.
@@ -212,56 +281,91 @@ cpdef externalSPR(dict edges_list,int root_node):
     nodes_dict = adjlist2nodes_dict(edges_list)
     
     #print("\n##### Old dictionary ########\n",nodes_dict,"\n")
-    
-    leaf = random.randint(1, config.N_TAXA)
-    
-    parent_leaf = rev_nodes_dict[leaf]
 
-    tgt = random.choice(list(edges_list))
-    
-    if parent_leaf == root_node or parent_leaf in tgt:
-        hastings_ratio = 0.0
-    elif rev_nodes_dict[parent_leaf] in tgt:
-        hastings_ratio = 0.0
-    else:
-        children_parent_leaf = nodes_dict[parent_leaf]
-        other_child_parent_leaf = children_parent_leaf[0]
-        if leaf == other_child_parent_leaf:
-            other_child_parent_leaf = children_parent_leaf[1]
+    while(1):
+        leaf = random.randint(1, config.N_TAXA)
         
-        x = edges_list[rev_nodes_dict[parent_leaf], parent_leaf]
-        y = edges_list[parent_leaf, other_child_parent_leaf]
-        r = edges_list[tgt]
-        
-        del edges_list[rev_nodes_dict[parent_leaf], parent_leaf]
-        del edges_list[parent_leaf, other_child_parent_leaf]
-        del edges_list[tgt]
-        
-        u = random.random()
-        edges_list[tgt[0],parent_leaf] = r*u
-        edges_list[parent_leaf,tgt[1]] = r*(1.0-u)
-        edges_list[rev_nodes_dict[parent_leaf], other_child_parent_leaf]=x+y
-        hastings_ratio = r/(x+y)
+        parent_leaf = rev_nodes_dict[leaf]
 
+        tgt = random.choice(list(edges_list))
         
+        if parent_leaf == root_node or parent_leaf in tgt:
+            hastings_ratio = 0.0
+            continue
+        elif rev_nodes_dict[parent_leaf] in tgt:
+            hastings_ratio = 0.0
+            continue
+        else:
+            children_parent_leaf = nodes_dict[parent_leaf]
+            other_child_parent_leaf = children_parent_leaf[0]
+            if leaf == other_child_parent_leaf:
+                other_child_parent_leaf = children_parent_leaf[1]
+            
+            x = edges_list[rev_nodes_dict[parent_leaf], parent_leaf]
+            y = edges_list[parent_leaf, other_child_parent_leaf]
+            r = edges_list[tgt]
+            
+            del edges_list[rev_nodes_dict[parent_leaf], parent_leaf]
+            del edges_list[parent_leaf, other_child_parent_leaf]
+            del edges_list[tgt]
+            
+            u = np.random.random()
+            edges_list[tgt[0],parent_leaf] = r*u
+            edges_list[parent_leaf,tgt[1]] = r*(1.0-u)
+            edges_list[rev_nodes_dict[parent_leaf], other_child_parent_leaf]=x+y
+            hastings_ratio = r/(x+y)
+            break
+
+    assert hastings_ratio > 0
+       
     temp_nodes_dict = adjlist2nodes_dict(edges_list)
     new_postorder = postorder(temp_nodes_dict, root_node)[::-1]
 
     return edges_list, new_postorder, hastings_ratio
 
-cpdef mvDualSlider(double[:] pi):
-    cdef int i, j
-    cdef double sum_ij = 0.0
-    i, j = random.sample(range(pi.shape[0]), 2)
-    sum_ij = pi[i]+pi[j]
-    x = random.uniform(pi[i]-window/2, pi[i]+window/2)
-    if x < 0:
-        x = -x
-    if x > sum_ij:
-        x = 2*sum_ij-x
+#cpdef mvDualSlider(double[:] pi):
+#    cdef int i, j
+#    cdef double sum_ij = 0.0
+#    cdef double low, high
+
+#    i, j = random.sample(range(pi.shape[0]), 2)
+#    sum_ij = pi[i]+pi[j]
+
+#    low, high = pi[i], pi[j]
+#    if pi[i] > pi[j]:
+#        low = pi[j]
+#        high = pi[i]
+
+#    cdef double x = np.random.uniform(low, high)
+#    pi[i] = x
+#    pi[j] = sum_ij - x
+
+#    cdef double y = sum_ij -x
+#    pi[i], pi[j] = x, y
+
+#    cdef double x = random.uniform(low, sum_ij)
+#    cdef double y = sum_ij -x
     
-    pi[i] = x
-    pi[j] = sum_ij-x
+#    cdef double x = sum_ij*random.uniform(epsilon, sum_ij)
+#    cdef double y = sum_ij -x
+
+
+#    x = random.uniform(pi[i]-window/2, pi[i]+window/2)
+
+#    print("mvDualSlider ", pi[i], pi[j], sum_ij, x, pi[i], pi[j])
+
+#    if x < 0:
+#        print("Negative ", x)
+#        x = -1*x
+#        print("Negative ", x)
+#    elif x > sum_ij:
+#        x = 2*sum_ij-x
+
+#    pi[i] = x
+#    pi[j] = sum_ij-x
+
+#    print("mvDualSlider ", pi[i], pi[j], sum_ij, x, pi[i], pi[j])
+
 
 #    i, j = random.sample(range(config.N_CHARS), 2)
 
@@ -271,22 +375,149 @@ cpdef mvDualSlider(double[:] pi):
 #    cdef double y = sum_ij -x
 #    pi[i], pi[j] = x, y
         
-    return pi, 0.0
+#    return pi, 0.0
 
-cpdef mvBinaryDualSlider(double[:] pi):
-    x = random.uniform(pi[0]-window/2, pi[0]+window/2)
-    if x < 0:
-        x = -x
-    if x > 1:
-        x = 2-x
-    pi[0] = x
-    pi[1] = 1-x
-#    cdef double sum_ij = pi[i]+pi[1]
+#cpdef mvRatesSlider(double[:] pi):
+#    cdef int i, j 
+#    i, j = random.sample(range(pi.shape[0]), 2)
+##    i, j = random.sample(range(config.N_CHARS), 2)
+
+#    cdef double sum_ij = pi[i]+pi[j]
 #    #cdef double x = random.uniform(epsilon, sum_ij)
 #    cdef double x = sum_ij*random.random()
 #    cdef double y = sum_ij -x
 #    pi[i], pi[j] = x, y
-        
+#        
+#    return pi, 0.0
+
+#cpdef mvSlider(double[:] pi):
+#    x = np.random.uniform(pi[0]-window/2, pi[0]+window/2)
+#    while(1):
+#        if x <= 0:
+#            x = -x
+#        elif x >= 1:
+#            x = 2-x
+#        elif x > 0 and x < 1:
+#            break
+
+
+cpdef mvRatesSlider(double[:] pi):
+    cdef int i, j
+    i, j = random.sample(range(pi.shape[0]), 2)
+    cdef double sum_ij = 0.0
+    sum_ij = pi[i]+pi[j]
+    
+    x = np.random.uniform(pi[i]-window/2, pi[i]+window/2)
+
+    while(1):
+        if x <= 0:
+            x = -x
+        elif x >= sum_ij:
+            x = 2*sum_ij-x
+        elif x > 0 and x < sum_ij:
+            break
+
+    pi[i] = x
+    pi[j] = sum_ij - x
+
+#    print("rates",i, " = ", pi[i], "rates",j, " = ", pi[j])
+
+    return pi, 0.0
+
+cpdef mvShapeScaler(float old_alpha):
+    log_c = shape_scaler_tuning*(np.random.random()-0.5)
+    c = c_exp(log_c)
+    new_alpha = old_alpha*c
+
+    while(1):
+        if new_alpha >= max_shape_pr:
+            new_alpha = max_shape_pr**2/new_alpha
+        elif new_alpha <= min_shape_pr:
+            new_alpha = min_shape_pr**2/new_alpha            
+        elif new_alpha < max_shape_pr and new_alpha > min_shape_pr:
+            break
+
+#    pr_ratio = -shape_pr_exp*(new_alpha-alpha)
+
+    pr_ratio = ((a_S-1)*np.log(new_alpha/old_alpha)) - (b_S *(new_alpha-old_alpha)) #A Gamma prior for discrete gamma shape prior
+
+    proposal_ratio = np.log(new_alpha/old_alpha)
+
+#    print("In mvShapeScaler new_alpha = ",new_alpha, "Old alpha = ", old_alpha)
+
+    return new_alpha, proposal_ratio, pr_ratio
+
+cpdef mvShapeSlider(float old_alpha):
+    new_alpha = np.random.uniform(old_alpha-shape_slider_window/2, old_alpha+shape_slider_window/2)
+
+    while(1):
+        if new_alpha >= max_shape_pr:
+            new_alpha = 2*max_shape_pr - new_alpha
+        elif new_alpha <= min_shape_pr:
+            new_alpha = 2*min_shape_pr - new_alpha
+        elif new_alpha > min_shape_pr and new_alpha < max_shape_pr:
+            break
+
+#    pr_ratio = -shape_pr_exp*(new_alpha-old_alpha)
+
+    pr_ratio = ((a_S-1)*np.log(new_alpha/old_alpha)) - (b_S *(new_alpha-old_alpha)) #A Gamma prior for discrete gamma shape prior
+
+    proposal_ratio = 0
+
+#    print("In mvShapeSlider new_alpha = ",new_alpha, "Old alpha = ", old_alpha)
+
+    return new_alpha, proposal_ratio, pr_ratio
+
+cpdef mvDualSlider(double[:] pi):
+    cdef int i, j
+    i, j = random.sample(range(pi.shape[0]), 2)
+    cdef double sum_ij = 0.0
+    sum_ij = pi[i]+pi[j]
+    
+    x = np.random.uniform(pi[i]-window/2, pi[i]+window/2)
+
+    while(1):
+        if x <= 0:
+            x = -x
+        elif x >= sum_ij:
+            x = 2*sum_ij-x
+        elif x > 0 and x < sum_ij:
+            break
+
+    pi[i] = x
+    pi[j] = sum_ij - x
+
+#    print("state",i, " = ", pi[i], "state",j, " = ", pi[j])
+
+    return pi, 0.0
+
+cpdef mvBinaryDualSlider(double[:] pi):
+    cdef double x = 0.0
+
+    x = np.random.uniform(pi[0]-window/2, pi[0]+window/2)
+    while(1):
+        if x <= 0:
+            x = -x
+        elif x >= 1:
+            x = 2-x
+        elif x > 0 and x < 1:
+            break
+
+    pi[0] = x
+    pi[1] = 1.0 - x
+
+#    print("state 0 = ", pi[0], "state 1 = ", pi[1])
+
+#    sum_ij = pi[0]+pi[1]
+
+
+#    cdef int i, j
+#    cdef double sum_ij = pi[0]+pi[1]
+#    #cdef double x = random.uniform(epsilon, sum_ij)
+#    cdef double x = sum_ij*random.random()
+#    cdef double y = sum_ij -x
+#    pi[0], pi[1] = x, y
+
     return pi, 0.0
 
 
@@ -334,6 +565,41 @@ cpdef adjlist2reverse_nodes_dict(edges_dict):
     #print(reverse_nodes_dict)
     return reverse_nodes_dict
 
+#cpdef init_tree(float b_T):
+#    t = rtree()
+#    edge_dict, n_nodes = newick2bl(t)
+#    
+#    temp_edge_items = edge_dict.copy()
+#    
+#    for x, y in temp_edge_items:
+#        if y in config.TAXA:
+#            del edge_dict[x,y]
+#            edge_dict[x, config.TAXA.index(y)+1] = 1
+#    
+##    TL = random.gammavariate(a_T, b_T)
+
+#    n_branches = 2*config.N_TAXA-2
+##    TL = 0.5*n_branches
+##    print("Initial tree length", TL, "with inverse beta parameter", b_T)
+
+##    n_brans_lens = TL*np.random.dirichlet(np.repeat(1,n_branches))
+#    n_brans_lens = [0.1]*n_branches
+##    print("Tree length ", sum(n_brans_lens))
+#    for i, k in enumerate(edge_dict.keys()):
+#        edge_dict[k] = 0.2
+##        edge_dict[k] = n_brans_lens[i]
+
+#    print("Tree length ", sum(edge_dict.values()))
+
+
+##    for k, v in edge_dict.items():
+##        edge_dict[k] = random.expovariate(1.0/bl_exp_scale)
+
+#    
+#    #print edge_dict
+#    
+#    return edge_dict, n_nodes
+
 cpdef init_tree():
     t = rtree()
     edge_dict, n_nodes = newick2bl(t)
@@ -345,12 +611,21 @@ cpdef init_tree():
             del edge_dict[x,y]
             edge_dict[x, config.TAXA.index(y)+1] = 1
     
-    TL = random.gammavariate(1, 0.1)
-    n_branches = 2*config.N_TAXA-2
-    n_brans_lens = TL*np.random.dirichlet(np.repeat(1,n_branches))
+#    TL = random.gammavariate(a_T, b_T)
+    TL = np.random.gamma(a_T, scale=1/b_T)
 
+
+    n_branches = 2*config.N_TAXA-2
+#    print("Initial tree length", TL, "with inverse beta parameter", b_T)
+
+    n_brans_lens = TL*np.random.dirichlet(np.repeat(1,n_branches))
+    print("Tree length ", sum(n_brans_lens))
     for i, k in enumerate(edge_dict.keys()):
         edge_dict[k] = n_brans_lens[i]
+#        edge_dict[k] = 0.1        
+
+    print("Tree length from edge dict", sum(edge_dict.values()))
+
 
 #    for k, v in edge_dict.items():
 #        edge_dict[k] = random.expovariate(1.0/bl_exp_scale)
@@ -360,8 +635,26 @@ cpdef init_tree():
     
     return edge_dict, n_nodes
 
+
 cpdef init_alpha_rate():
-    return random.expovariate(scaler_alpha)
+#    x = np.random.exponential(1/shape_pr_exp)
+
+#    while(1):
+#        if x > min_shape_pr and x < max_shape_pr:
+#            break
+#        else:
+#            x = np.random.exponential(1/shape_pr_exp)
+
+    x = np.random.gamma(a_S, scale=1/b_S)
+
+    while(1):
+        if x > min_shape_pr and x < max_shape_pr:
+            break
+        else:
+            x = np.random.gamma(a_S, scale=1/b_S)
+
+
+    return x
     
 cpdef newick2bl(t):
     """Implement a function that can read branch lengths from a newick tree
@@ -431,6 +724,23 @@ cpdef init_pi_er():
     #print "Rates"
     #print er
     return pi, er
+
+cpdef init_pi_er_ml():
+    cdef double[:] pi, er
+    #cdef double[:] er
+    #print config.N_CHARS
+    
+    if config.MODEL == "JC":
+        pi = np.repeat(1.0/config.N_CHARS, config.N_CHARS)
+    elif config.MODEL in ["F81", "GTR"]:
+        
+        pi = np.random.dirichlet(np.repeat(1,config.N_CHARS))
+        #print pi
+    er = np.random.dirichlet(np.repeat(1,config.N_CHARS*(config.N_CHARS-1)/2))
+    #print "Rates"
+    #print er
+    return pi, er
+
 
 #def prior_probs(param, val):
 #    if param == "pi":
@@ -606,7 +916,7 @@ cpdef fnGTR(er, pi):
     return Q
 
 cpdef ptJC(double x, double y):
-    """Compute the Probability matrix under a F81 model
+    """Compute the Probability matrix under a JC model
     """
     cdef np.ndarray[double, ndim=2] p_t
     p_t = np.empty((config.N_CHARS, config.N_CHARS))
@@ -683,7 +993,7 @@ cpdef state_init():
     state["pi"] = pi
     state["rates"] = er
     state["tree"], state["root"] = init_tree()
-    state["srates"] = init_alpha_rate()
+    state["srates"] = 1#init_alpha_rate()#. Fixing this to avoid NaN issues when generating site rates using Chi-Square distribution
     nodes_dict = adjlist2nodes_dict(state["tree"])
     edges_ordered_list = postorder(nodes_dict, state["root"])[::-1]
     state["postorder"] = edges_ordered_list
@@ -695,12 +1005,47 @@ cpdef state_init():
 
 
 cpdef get_siterates(float alpha):
-    cutoffs = [chi2.isf(1-p,2*alpha) for p in np.arange(1.0/config.N_CATS,1,1.0/config.N_CATS)]
-    site_rates = [gammainc(alpha+1,cutoffs[0]*alpha)*config.N_CATS]
-    for i in range(1,config.N_CATS-1):
-        site_rates.append((gammainc(alpha+1,cutoffs[i]*alpha)-gammainc(alpha+1,cutoffs[i-1]*alpha))*config.N_CATS)
-    site_rates.append((1.0-gammainc(alpha+1,cutoffs[-1]*alpha))*config.N_CATS)
+
+    if config.N_CATS == 1: return [1]
+
+    site_rates = [0]*config.N_CATS
+
+    cutoffs = [chi2.isf(1-p,2*alpha)/(2*alpha) for p in np.arange(0,1,1.0/config.N_CATS)]
+#    print("Chi Cutoffs =", cutoffs)
+
+    for i in range(1,config.N_CATS):
+#        print(i, cutoffs[i-1], cutoffs[i], (gammainc(alpha+1,cutoffs[i]*alpha)-gammainc(alpha+1,cutoffs[i-1]*alpha))*N_CATS)
+        site_rates[i-1] = (gammainc(alpha+1,cutoffs[i]*alpha)-gammainc(alpha+1,cutoffs[i-1]*alpha))*config.N_CATS
+#    print(i+1, cutoffs[-1], (1.0-gammainc(alpha+1,cutoffs[-1]*alpha))*N_CATS)
+
+    site_rates[-1] = (1.0-gammainc(alpha+1,cutoffs[-1]*alpha))*config.N_CATS
+
     return site_rates
+
+#    cutoffs = [chi2.isf(1-p,2*alpha)/(2*alpha) for p in np.arange(1.0/config.N_CATS,1,1.0/config.N_CATS)]
+#    if config.N_CATS == 3:
+#        cutoffs = cutoffs[:-1]
+#    site_rates = [gammainc(alpha+1,cutoffs[0]*alpha)*config.N_CATS]
+#    for i in range(1,config.N_CATS-1):
+#        site_rates.append((gammainc(alpha+1,cutoffs[i]*alpha)-gammainc(alpha+1,cutoffs[i-1]*alpha))*config.N_CATS)
+#    site_rates.append((1.0-gammainc(alpha+1,cutoffs[-1]*alpha))*config.N_CATS)
+#    return site_rates
+
+#cpdef get_siterates(float alpha):
+##    cutoffs = [chi2.isf(1-p,2*alpha)/(2*alpha) for p in np.arange(0,1,1.0/config.N_CATS)]
+#    cutoffs = [chi2.isf(1-p,2*alpha) for p in np.arange(0,1,1.0/config.N_CATS)]
+##    cutoffs = [gamma.ppf(p,alpha, loc=0, scale=1.0/alpha) for p in np.arange(0,1,1.0/config.N_CATS)]
+
+#    if config.N_CATS == 1: return [1]
+
+#    site_rates = [0]*config.N_CATS
+
+#    for i in range(1,config.N_CATS):
+#        site_rates[i-1] = (gammainc(alpha+1,cutoffs[i]*alpha)-gammainc(alpha+1,cutoffs[i-1]*alpha))*config.N_CATS
+
+#    site_rates[-1] = (1.0-gammainc(alpha+1,cutoffs[-1]*alpha))*config.N_CATS
+
+#    return site_rates
 
 
 

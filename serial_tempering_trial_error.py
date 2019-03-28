@@ -76,7 +76,7 @@ elif config.MODEL == "JC":
     params_list = ["bl", "tree", "srates"]
     weights = np.array([4, 3, 0.5], dtype=np.float64)
 
-tree_move_weights = np.array([4, 1], dtype=np.float64)
+tree_move_weights = np.array([8, 1], dtype=np.float64)
 bl_move_weights = np.array([3, 1], dtype=np.float64)
 
 weights = weights/np.sum(weights)
@@ -85,7 +85,7 @@ bl_move_weights = bl_move_weights/np.sum(bl_move_weights)
 
 moves_count = defaultdict(int)
 accepts_count = defaultdict(int)
-moves_dict = {"pi": [mvDualSlider], "rates": [mvDualSlider], "tree":[rooted_NNI, externalSPR], "bl":[scale_edge, node_slider], "srates":[scale_alpha]}
+moves_dict = {"pi": [mvDualSlider], "rates": [mvDualSlider], "tree":[rooted_NNI, externalSPR], "bl":[scale_edge, slide_edge], "srates":[mvShapeScaler]}
 
 if args.data_type == "bin":
     moves_dict["pi"] = [mvBinaryDualSlider]
@@ -140,7 +140,7 @@ while(1):
 
         elif param_select == "bl":
 
-            if move.__name__ == "scale_edge":
+            if move.__name__ == "scale_edge" or move.__name__ == "slide_edge":
                 prop_edges_dict, hr, pr_ratio, change_edge = move(state["tree"].copy())
 
             elif move.__name__ == "node_slider":
@@ -165,7 +165,7 @@ while(1):
             current_rates = site_rates[:]        
             site_rates = get_siterates(new_param)
         
-        if move.__name__ == "scale_edge":
+        if move.__name__ == "scale_edge" or move.__name__ == "slide_edge":
             for imr, mean_rate in enumerate(site_rates):
                 old_edge_p_ts.append(state["transitionMat"][imr][change_edge].copy())
                 state["transitionMat"][imr][change_edge] = get_edge_transition_mat(propose_state["pi"], propose_state["rates"], propose_state["tree"][change_edge]*mean_rate)
@@ -210,7 +210,7 @@ while(1):
             else:
                 state[param_select] = new_param#propose_state[param_select]
 
-            if move.__name__ not in ["scale_edge", "rooted_NNI", "node_slider"]:
+            if move.__name__ not in ["scale_edge", "rooted_NNI", "node_slider", "slide_edge"]:
                 state["transitionMat"] = prop_tmats
 
             if move.__name__ == "rooted_NNI":
@@ -226,7 +226,7 @@ while(1):
         else:
             if param_select == "srates":
                 site_rates = current_rates[:]
-            elif move.__name__ == "scale_edge":
+            elif move.__name__ == "scale_edge" or move.__name__ == "slide_edge":
                 for ip_t, p_t in enumerate(state["transitionMat"]):
                     state["transitionMat"][ip_t][change_edge] = old_edge_p_ts[ip_t]
             elif move.__name__ == "node_slider":
@@ -272,7 +272,7 @@ while(1):
     stationary_freqs = "\t".join([str(state["pi"][idx]) for idx in range(config.N_CHARS)])
     sampled_tree = adjlist2newickBL(state["tree"], adjlist2nodes_dict(state["tree"]), state["root"])+";"
     if n_iter % config.THIN == 0:
-        print(n_iter, current_ll, proposed_ll, TL, param_select, move.__name__, current_chain, sep="\t")
+        print(n_iter, current_ll, proposed_ll, TL, state["srates"], param_select, move.__name__, current_chain, sep="\t")
     if current_chain == 0:
         n_iter_chain0 += 1
         if n_iter_chain0 % args.cold_chain_thin == 0:
@@ -323,3 +323,4 @@ print("MCMC chain run for {} iterations for {} seconds".format(n_iter, round(tim
 
 print("Chain temperature visit counts ",*global_counts_states, sep="\t")
 
+print("Log Psuedo Prior ", log_psuedo_prior)
