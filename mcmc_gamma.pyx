@@ -282,41 +282,41 @@ cpdef externalSPR(dict edges_list,int root_node):
     
     #print("\n##### Old dictionary ########\n",nodes_dict,"\n")
 
-    while(1):
-        leaf = random.randint(1, config.N_TAXA)
-        
-        parent_leaf = rev_nodes_dict[leaf]
+#    while(1):
+    leaf = random.randint(1, config.N_TAXA)
+    
+    parent_leaf = rev_nodes_dict[leaf]
 
-        tgt = random.choice(list(edges_list))
+    tgt = random.choice(list(edges_list))
+    
+    if parent_leaf == root_node or parent_leaf in tgt:
+        hastings_ratio = 0.0
+#        continue
+    elif rev_nodes_dict[parent_leaf] in tgt:
+        hastings_ratio = 0.0
+#        continue
+    else:
+        children_parent_leaf = nodes_dict[parent_leaf]
+        other_child_parent_leaf = children_parent_leaf[0]
+        if leaf == other_child_parent_leaf:
+            other_child_parent_leaf = children_parent_leaf[1]
         
-        if parent_leaf == root_node or parent_leaf in tgt:
-            hastings_ratio = 0.0
-            continue
-        elif rev_nodes_dict[parent_leaf] in tgt:
-            hastings_ratio = 0.0
-            continue
-        else:
-            children_parent_leaf = nodes_dict[parent_leaf]
-            other_child_parent_leaf = children_parent_leaf[0]
-            if leaf == other_child_parent_leaf:
-                other_child_parent_leaf = children_parent_leaf[1]
-            
-            x = edges_list[rev_nodes_dict[parent_leaf], parent_leaf]
-            y = edges_list[parent_leaf, other_child_parent_leaf]
-            r = edges_list[tgt]
-            
-            del edges_list[rev_nodes_dict[parent_leaf], parent_leaf]
-            del edges_list[parent_leaf, other_child_parent_leaf]
-            del edges_list[tgt]
-            
-            u = np.random.random()
-            edges_list[tgt[0],parent_leaf] = r*u
-            edges_list[parent_leaf,tgt[1]] = r*(1.0-u)
-            edges_list[rev_nodes_dict[parent_leaf], other_child_parent_leaf]=x+y
-            hastings_ratio = r/(x+y)
-            break
+        x = edges_list[rev_nodes_dict[parent_leaf], parent_leaf]
+        y = edges_list[parent_leaf, other_child_parent_leaf]
+        r = edges_list[tgt]
+        
+        del edges_list[rev_nodes_dict[parent_leaf], parent_leaf]
+        del edges_list[parent_leaf, other_child_parent_leaf]
+        del edges_list[tgt]
+        
+        u = np.random.random()
+        edges_list[tgt[0],parent_leaf] = r*u
+        edges_list[parent_leaf,tgt[1]] = r*(1.0-u)
+        edges_list[rev_nodes_dict[parent_leaf], other_child_parent_leaf]=x+y
+        hastings_ratio = r/(x+y)
+#            break
 
-    assert hastings_ratio > 0
+#    assert hastings_ratio > 0
        
     temp_nodes_dict = adjlist2nodes_dict(edges_list)
     new_postorder = postorder(temp_nodes_dict, root_node)[::-1]

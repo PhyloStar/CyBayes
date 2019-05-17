@@ -72,8 +72,8 @@ elif config.MODEL == "JC":
     params_list = ["bl", "tree", "srates"]
     weights = np.array([4, 3, 0.5], dtype=np.float64)
 
-tree_move_weights = np.array([4, 1], dtype=np.float64)
-bl_move_weights = np.array([3, 1], dtype=np.float64)
+tree_move_weights = np.array([4, 0], dtype=np.float64)
+bl_move_weights = np.array([3, 0], dtype=np.float64)
 
 weights = weights/np.sum(weights)
 tree_move_weights = tree_move_weights/np.sum(tree_move_weights)
@@ -81,7 +81,7 @@ bl_move_weights = bl_move_weights/np.sum(bl_move_weights)
 
 moves_count = defaultdict(int)
 accepts_count = defaultdict(int)
-moves_dict = {"pi": [mvDualSlider], "rates": [mvDualSlider], "tree":[rooted_NNI, externalSPR], "bl":[scale_edge, node_slider], "srates":[scale_alpha]}
+moves_dict = {"pi": [mvDualSlider], "rates": [mvDualSlider], "tree":[rooted_NNI, externalSPR], "bl":[scale_edge, node_slider], "srates":[mvShapeScaler]}
 
 params_fileWriter = open(args.output_file+".log","w")
 trees_fileWriter = open(args.output_file+".trees","w")
