@@ -26,7 +26,7 @@ cdef double window = 0.1
 cdef double min_shape_pr = 0.1
 cdef double max_shape_pr = 100
 cdef double shape_pr_exp = 2.0
-cdef double shape_scaler_tuning = 0.7
+cdef double shape_scaler_tuning = 1.0
 cdef double shape_slider_window = 0.1
 cdef double a_S = 2
 cdef double b_S = 4
@@ -36,7 +36,7 @@ cdef double max_branch_len = 100
 cdef double edge_slide_window = 0.1
 cdef double edge_scaler_window = 1.2
 cdef double a_T = 1
-cdef double b_T = 0.01#For large phylogenies up to 1000
+cdef double b_T = 0.1#For large phylogenies up to 1000
 
 cpdef get_path2root(dict X, int internal_node, int root):
     cdef list paths = []
@@ -437,9 +437,9 @@ cpdef mvShapeScaler(float old_alpha):
         elif new_alpha < max_shape_pr and new_alpha > min_shape_pr:
             break
 
-#    pr_ratio = -shape_pr_exp*(new_alpha-alpha)
+    pr_ratio = -shape_pr_exp*(new_alpha-old_alpha)
 
-    pr_ratio = ((a_S-1)*np.log(new_alpha/old_alpha)) - (b_S *(new_alpha-old_alpha)) #A Gamma prior for discrete gamma shape prior
+#    pr_ratio = ((a_S-1)*np.log(new_alpha/old_alpha)) - (b_S *(new_alpha-old_alpha)) #A Gamma prior for discrete gamma shape prior
 
     proposal_ratio = np.log(new_alpha/old_alpha)
 
