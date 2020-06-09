@@ -8,6 +8,8 @@ os.environ["NUMEXPR_NUM_THREADS"] = '1' # export NUMEXPR_NUM_THREADS=6
 
 import numpy as np
 
+from nexus import NexusReader
+
 cpdef readBinaryPhy(str fname):
     site_dict = {}#defaultdict()
     cdef list alphabet, taxa_list
@@ -120,4 +122,16 @@ cpdef sites2Mat(dict sites, int n_chars, list alphabet, list taxa_list):
     return LL_MAT
     
     
+def readNexus(fname):
+    n = NexusReader.from_file(fname)
+    n_leaves = n.data.ntaxa
+    n_sites = n.data.nchar
+    alphabet = [alpha for alpha in n.data.symbols if alpha not in ["?", "-"]]
+    taxa_list = n.data.taxa
+    n_chars = len(alphabet)
+    site_dict = dict(n.data.matrix)
+    
+    ll_mats= sites2Mat(site_dict, n_chars, alphabet, taxa_list)
+    
+    return n_leaves, n_chars, alphabet, site_dict, ll_mats, taxa_list, n_sites
     
