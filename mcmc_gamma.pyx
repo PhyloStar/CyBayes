@@ -23,11 +23,11 @@ cdef double scaler_alpha = 1.0
 cdef double epsilon = 1e-10
 cdef double window = 0.1
 
-cdef double min_shape_pr = 0.1
+cdef double min_shape_pr = 0.0001
 cdef double max_shape_pr = 100
-cdef double shape_pr_exp = 2.0
-cdef double shape_scaler_tuning = 1.0
-cdef double shape_slider_window = 0.1
+cdef double shape_pr_exp = 1.0
+cdef double shape_scaler_tuning = 0.5
+cdef double shape_slider_window = 0.5
 cdef double a_S = 2
 cdef double b_S = 4
 
@@ -424,6 +424,14 @@ cpdef mvRatesSlider(double[:] pi):
 
     return pi, 0.0
 
+cpdef scale_alpha(float alpha):
+    log_c = scaler_alpha*(random.random()-0.5)
+    c = c_exp(log_c)
+    new_alpha = alpha*c
+    pr_ratio = -(new_alpha-alpha)
+    return new_alpha, log_c, pr_ratio
+
+
 cpdef mvShapeScaler(float old_alpha):
     log_c = shape_scaler_tuning*(np.random.random()-0.5)
     c = c_exp(log_c)
@@ -437,13 +445,13 @@ cpdef mvShapeScaler(float old_alpha):
         elif new_alpha < max_shape_pr and new_alpha > min_shape_pr:
             break
 
-    pr_ratio = -shape_pr_exp*(new_alpha-old_alpha)
+#    pr_ratio = -shape_pr_exp*(new_alpha-old_alpha)
 
-#    pr_ratio = ((a_S-1)*np.log(new_alpha/old_alpha)) - (b_S *(new_alpha-old_alpha)) #A Gamma prior for discrete gamma shape prior
+    pr_ratio = ((a_S-1)*np.log(new_alpha/old_alpha)) - (b_S *(new_alpha-old_alpha)) #A Gamma prior for discrete gamma shape prior
 
     proposal_ratio = np.log(new_alpha/old_alpha)
 
-#    print("In mvShapeScaler new_alpha = ",new_alpha, "Old alpha = ", old_alpha)
+    #print("In mvShapeScaler new_alpha = ",new_alpha, "Old alpha = ", old_alpha)
 
     return new_alpha, proposal_ratio, pr_ratio
 
@@ -645,14 +653,11 @@ cpdef init_alpha_rate():
 #        else:
 #            x = np.random.exponential(1/shape_pr_exp)
 
-    x = np.random.gamma(a_S, scale=1/b_S)
-
     while(1):
+        x = np.random.gamma(a_S, scale=1/b_S)
+
         if x > min_shape_pr and x < max_shape_pr:
             break
-        else:
-            x = np.random.gamma(a_S, scale=1/b_S)
-
 
     return x
     
@@ -993,7 +998,8 @@ cpdef state_init():
     state["pi"] = pi
     state["rates"] = er
     state["tree"], state["root"] = init_tree()
-    state["srates"] = 1#init_alpha_rate()#. Fixing this to avoid NaN issues when generating site rates using Chi-Square distribution
+    #state["srates"] = 1
+    state["srates"] = init_alpha_rate()#. Fixing this to avoid NaN issues when generating site rates using Chi-Square distribution
     nodes_dict = adjlist2nodes_dict(state["tree"])
     edges_ordered_list = postorder(nodes_dict, state["root"])[::-1]
     state["postorder"] = edges_ordered_list

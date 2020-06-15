@@ -11,23 +11,23 @@ random.seed(1234)
 time_start = time.time()
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-i", "--input_file", help="Input a file in Phylip format with taxa and characters separated by a TAB character",  type=str)
+parser.add_argument("-i", "--input_file", help="Input a file in Nexus format",  type=str)
 parser.add_argument("-m", "--model", help="JC/F81/GTR",  type=str, default = "F81")
 parser.add_argument("-n","--n_gen", help="Number of generations",  type=int, default = 100000)
-parser.add_argument("-t","--thin", help="Number of generations after to print to screen",  type=int, default = 500)
+parser.add_argument("-t","--thin", help="Number of generations after to print to screen",  type=int, default = 1000)
 parser.add_argument("-d","--data_type", help="Type of data if it is binary/multistate. Specify bin for binary and multi for multistate characters or phonetic alignments",  type=str)
 parser.add_argument("-o","--output_file", help="Name of the out file prefix",  type=str, default = "temp")
-parser.add_argument("-N","--n_chains", help="Name of the out file prefix",  type=int, default=4)
+parser.add_argument("-N","--n_chains", help="Number of chains",  type=int, default=4)
 parser.add_argument("-dt","--deltaT", help="Chain temperature spacing",  type=float, default=0.1)
 parser.add_argument("-a","--adjust_step", help="Chain temperature spacing",  type=int, default=500)
 parser.add_argument("-C","--st_const", help="Upper bound",  type=int, default=10)
 parser.add_argument("-p","--inc_temp", help="Harmonic/geometric spacing of temperature",  type=str, default="hm")
 parser.add_argument("-cr","--converge_ratio", help="Convergence ratio",  type=float, default=1.5)
-parser.add_argument("-ct","--cold_chain_thin", help="Thin the cold chain",  type=int, default=500)
+parser.add_argument("-ct","--cold_chain_thin", help="Thinning the cold chain to write to file",  type=int, default=500)
 parser.add_argument("-cns","--cold_n_samples", help="Number of samples in cold chain",  type=int, default = 1000)
 parser.add_argument("-ncats","--nr_categories", help="Number of categories for discrete Gamma distribution",  type=int, default = 4)
-parser.add_argument('--ml_scale', default=False, action='store_true')
-parser.add_argument('--ml_cache', default=False, action='store_true')
+parser.add_argument('--ml_scale', default=True, action='store_true')
+parser.add_argument('--ml_cache', default=True, action='store_true')
 #parser.add_argument("-sd","--seed", help="Initial Seed Value",  type=int, default = 1)
 args = parser.parse_args()
 
@@ -36,12 +36,15 @@ if args.n_chains <= 1:
     print("Number of chains should be greater than 1")
     sys.exit(1)
 
-if args.data_type == "bin":
-    config.N_TAXA, config.N_CHARS, config.ALPHABET, site_dict, config.LEAF_LLMAT, config.TAXA, config.N_SITES = utils.readBinaryPhy(args.input_file)
+#if args.data_type == "bin":
+#    config.N_TAXA, config.N_CHARS, config.ALPHABET, site_dict, config.LEAF_LLMAT, config.TAXA, config.N_SITES = utils.readBinaryPhy(args.input_file)
 
-elif args.data_type == "multi":
-    config.N_TAXA, config.N_CHARS, config.ALPHABET, site_dict, config.LEAF_LLMAT, config.TAXA, config.N_SITES = utils.readMultiPhy(args.input_file)
+#elif args.data_type == "multi":
+#    config.N_TAXA, config.N_CHARS, config.ALPHABET, site_dict, config.LEAF_LLMAT, config.TAXA, config.N_SITES = utils.readMultiPhy(args.input_file)
 
+print("Processing nexus file", args.input_file)
+
+config.N_TAXA, config.N_CHARS, config.ALPHABET, site_dict, config.LEAF_LLMAT, config.TAXA, config.N_SITES = utils.readNexus(args.input_file)
 
 config.IN_DTYPE = args.data_type
 config.N_GEN = args.n_gen
@@ -68,8 +71,10 @@ site_rates = get_siterates(init_state["srates"])
 
 print("Frequencies ", np.array(init_state["pi"]))
 print("Rates ", np.array(init_state["rates"]))
-print("Site rates ", np.array(site_rates))
+
 print("Discrete Gamma distn shape parameter", init_state["srates"])
+print("Site rates ", np.array(site_rates))
+
 print("Root of the tree", init_state["root"])
 
 if args.ml_scale:
@@ -101,8 +106,8 @@ elif config.MODEL == "JC":
     params_list = ["tree", "bl", "srates"]
     weights = np.array([3, 4, 0.5], dtype=np.float64)
 
-tree_move_weights = np.array([4, 1], dtype=np.float64)
-bl_move_weights = np.array([3, 0, 2], dtype=np.float64)
+tree_move_weights = np.array([4, 0], dtype=np.float64)
+bl_move_weights = np.array([3, 0, 0], dtype=np.float64)
 
 weights = weights/np.sum(weights)
 tree_move_weights = tree_move_weights/np.sum(tree_move_weights)
@@ -115,8 +120,12 @@ moves_dict = {"pi": [mvDualSlider], "rates": [mvRatesSlider], "tree":[rooted_NNI
 if args.data_type == "bin":
     moves_dict["pi"] = [mvBinaryDualSlider]
 
+if args.output_file == "temp":
+    args.output_file = args.input_file.replace(".nex","")
+    
 params_fileWriter = open(args.output_file+".log","w")
 trees_fileWriter = open(args.output_file+".trees","w")
+
 const_states = ["pi("+idx+")" for idx in config.ALPHABET]
 
 propose_state, prop_tmats = {}, []
@@ -134,7 +143,8 @@ if args.inc_temp == "hm":
 elif args.inc_temp == "gm":
     chain_T_dict = {i: (1+args.deltaT)**-i for i in range(args.n_chains)}#Geometric spacing
 print(chain_T_dict)
-current_chain = 0 # Initialize with random state. np.random.randint(args.n_chains)
+current_chain = 0 # Initialize with random state. 
+#current_chain = np.random.randint(args.n_chains)
 curr_beta_t = chain_T_dict[current_chain]
 
 print("Iter", "LnL", "TL", "Alpha", *const_states, sep="\t", file=params_fileWriter)
@@ -324,20 +334,44 @@ while(1):
         max_temp_counts = np.max(global_counts_states)
         min_temp_counts = np.min(global_counts_states)
 
-#        print("Visited chains relative frequency ", counts_states, temp_counts, min_temp_counts, max_temp_counts)
+        cr = max_temp_counts/min_temp_counts
+        
+        if min_temp_counts > 0 and cr < args.converge_ratio and n_iter_chain0 > args.cold_chain_thin * args.cold_n_samples:
+            break
+
+        clip_x = np.clip(np.log(np.max(temp_counts)/temp_counts), None, args.st_const) #c_k = 1/d_k. 
+
+        log_psuedo_prior += clip_x
+
+        log_psuedo_prior = log_psuedo_prior-np.min(log_psuedo_prior)
+
         counts_states = np.zeros(args.n_chains) #May be zero the counts if needed. Let us check later 
 
-        if min_temp_counts > 0 and max_temp_counts/min_temp_counts < args.converge_ratio and n_iter_chain0 > args.cold_chain_thin * args.cold_n_samples:
-#        if min_temp_counts > 0 and max_temp_counts/min_temp_counts < args.converge_ratio:
-            break
-        
-        clip_x = np.clip(np.log(np.max(temp_counts)/temp_counts), None, args.st_const) #c_k = 1/d_k. 
+        #print(n_iter, "Temp_counts", temp_counts, np.log(np.max(temp_counts)/temp_counts), clip_x, end="\n", sep="\n")        
+
+#        cr = 100000
+#        if min_temp_counts > 0:
+#            cr = max_temp_counts/min_temp_counts
+
+#        if min_temp_counts > 0 and cr < args.converge_ratio and n_iter_chain0 > args.cold_chain_thin * args.cold_n_samples:
+#            break
+            
+#        if min(temp_counts) == 0:
+#            clip_x = args.st_const
+#        else:
+#            clip_x = np.clip(np.log(np.max(temp_counts)/temp_counts), None, args.st_const) #c_k = 1/d_k. 
+            
+#        print("Visited chains relative frequency ", counts_states, temp_counts, min_temp_counts, max_temp_counts)
+
+#        if min_temp_counts > 0 and cr < args.converge_ratio:
+            
+#        print(n_iter, "Temp_counts", temp_counts)
+
 #        clip_x = np.clip(np.log(1/temp_counts), None, args.st_const)
 #        print("Clipped Log-pseudo prior ",clip_x)
 
-        log_psuedo_prior += clip_x
 #        print("Log Psuedo Prior before subtracting min", log_psuedo_prior)
-        log_psuedo_prior = log_psuedo_prior-np.min(log_psuedo_prior)
+
 #        print("Log Psuedo Prior after subtracting min", log_psuedo_prior)
 
 for k, v in moves_count.items():

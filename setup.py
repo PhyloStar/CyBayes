@@ -1,4 +1,5 @@
-from distutils.core import setup
+#from distutils.core import setup
+from setuptools import setup
 from Cython.Build import cythonize
 from Cython.Distutils import build_ext
 from distutils.extension import Extension
@@ -6,7 +7,14 @@ import numpy
 
 setup(cmdclass = {'build_ext': build_ext},
 
-ext_modules=[ Extension("config", ["config.pyx"]), Extension("utils", ["utils.pyx"], include_dirs=[numpy.get_include()]), Extension("ML_gamma", ["ML_gamma.pyx"], libraries=["m"], extra_compile_args = ["-ffast-math"], include_dirs=[numpy.get_include()]), Extension("mcmc_gamma", ["mcmc_gamma.pyx"], libraries=["m"], extra_compile_args = ["-ffast-math"], include_dirs=[numpy.get_include()]), Extension("ML_scaled_cache", ["ML_scaled_cache.pyx"], libraries=["m"], extra_compile_args = ["-ffast-math"], include_dirs=[numpy.get_include()])])
+ext_modules=[ Extension("config", ["config.pyx"]), Extension("utils", ["utils.pyx"], include_dirs=[numpy.get_include()]), Extension("ML_gamma", ["ML_gamma.pyx"], libraries=["m"], extra_compile_args = ["-ffast-math"], include_dirs=[numpy.get_include()]), Extension("mcmc_gamma", ["mcmc_gamma.pyx"], libraries=["m"], extra_compile_args = ["-ffast-math"], include_dirs=[numpy.get_include()]), Extension("ML_scaled_cache", ["ML_scaled_cache.pyx"], libraries=["m"], extra_compile_args = ["-ffast-math"], include_dirs=[numpy.get_include()])],
+
+entry_points={
+        'console_scripts': [
+            'cybaymcmc = CyBayes.cybaymcmc',
+        ],
+    },
+)
 
 #extensions = cythonize(extensions, language_level = "3")
 
